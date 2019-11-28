@@ -1,0 +1,8 @@
+Debug.win32
+define.py
+define.pyc
+Hshares.txt
+Sshares.txt
+token.txt
+instance/
+.vscode/
