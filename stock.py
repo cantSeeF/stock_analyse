@@ -1,6 +1,6 @@
 #coding=utf-8
 import tushare as ts
-import define
+from config import define
 # import sys
 # reload(sys)
 # sys.setdefaultencoding('utf-8')
