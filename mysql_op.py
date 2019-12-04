@@ -9,9 +9,19 @@ import MySQLdb
 #应收账款比率
 #存货比率
 
+#分红数据，从tushare获取，分红率=每股分红 ，日期=除权除息日
+
+#长期资金占不动产、厂房及设备比率 =  (长期负债 + 股东权益) / 不动产、厂房及设备 = （所有者权益+非流动负债合计）/（固定资产+在建工程+工程物资）
+
+#毛利 =（营业收入 - 营业成本 - 研发费用 - 营业税金及附加）
+#营业利润率（营业利益率） = 营业利润 / 营业收入
+
+#现金流量允当比率 https://www.jianshu.com/p/c98dcef4f159
+#现金再投资比率 https://www.jianshu.com/p/3007d9b49113
+
 
 #利润表
-lrb_dict = {'营业总收入','营业收入',''}
+lrb_dict = {}
 
 #资产负债表
 fzb_dict = {}
@@ -23,7 +33,14 @@ def connectdb():
     print('连接到mysql服务器...')
     # 打开数据库连接
     # 
-    db = MySQLdb.connect("localhost","root","123456","stock_analyse")
+    #db = MySQLdb.connect("localhost","root","123456","stock_analyse")
+    db = MySQLdb.connect(host="localhost",user="root",passwd="123456",db="stock_analyse")
+    # cursor = db.cursor()
+    # cursor.execute('show databases;')
+    # results = cursor.fetchall()
+    # print(results)
+    # for row in results:
+    #     print(row)
     print('连接上了!')
     return db
 
@@ -33,10 +50,10 @@ def createtable(db):
 
     # 如果存在表Sutdent先删除
     #cursor.execute("DROP TABLE IF EXISTS Student")
-    sql = """CREATE TABLE Student (
-            ID CHAR(10) NOT NULL,
-            Name CHAR(8),
-            Grade INT )"""
+    sql = 'CREATE TABLE IF NOT EXISTS "Student" (\
+            ID CHAR(10) NOT NULL,\
+            Name CHAR(8),\
+            Grade INT )'
 
     # 创建Sutdent表
     cursor.execute(sql)

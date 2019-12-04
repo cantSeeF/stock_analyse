@@ -57,14 +57,17 @@ for index,row in df.iterrows():
    if num > 2:
       break
 '''
-
+'''
 df = pro.daily(ts_code='000333.SZ', start_date='20190701', end_date='20191128')
 df.head(10)
 print(df)
+'''
 # for index,row in df.iterrows():
 #    print(row)
 
 #df = pro.cashflow(ts_code='000333.SH', start_date='20141101', end_date='20181129',ann_date='20181129',period='20181231',report_type='1',comp_type='1')
 #print(df)
-
+df = pro.dividend(ts_code='600500.SH')
+for index,row in df.iterrows():
+   print((str(index)+'   '+row['ts_code']+'  '+str(row['ex_date'])+' '+str(row['cash_div'])).encode('utf-8').strip())
 print('done')
