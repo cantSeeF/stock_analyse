@@ -1,10 +1,10 @@
 #coding=utf-8
 import tushare as ts
-from config import define
+from config import local
 # import sys
 # reload(sys)
 # sys.setdefaultencoding('utf-8')
-ts.set_token(define.get_token())
+ts.set_token(local.get_token())
 pro = ts.pro_api()
 #df = pro.trade_cal(exchange='', start_date='20180901', end_date='20181001', is_open='1')
 '''

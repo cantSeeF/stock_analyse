@@ -1,6 +1,6 @@
 Debug.win32
-define.py
-define.pyc
+local.py
+local.pyc
 Hshares.txt
 Sshares.txt
 token.txt
