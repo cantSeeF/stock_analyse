@@ -44,9 +44,9 @@ lrb_name_dict = {
     u'利润总额':'total_profit',
     u'所得税费用':'in_tax_expense',
     u'未确认投资损失':'unrecongnized_loss',
-    u'净利润':'net_profile',
-    u'归属于母公司所有者的净利润':'net_profile_company',
-    u'被合并方在合并前实现净利润':'net_profile_combined',
+    u'净利润':'net_profit',
+    u'归属于母公司所有者的净利润':'net_profit_company',
+    u'被合并方在合并前实现净利润':'net_profit_combined',
     u'少数股东损益':'minority_profit_loss',
     u'基本每股收益':'basic_earning_per_share',
     u'稀释每股收益':'diluted_earning_per_share'
@@ -59,7 +59,7 @@ zcfzb_name_dict = {
     u'交易性金融资产':'transactional_finacial_asset',#
     u'衍生金融资产':'derivative_finacial_asset',
     u'应收票据':'bill_receivable',
-    u'应收账款':'accounts_receivable',
+    u'应收账款':'accounts_receivable',#
     u'预付款项':'prepayments',
     u'应收保费':'premium_receivable',
     u'应收分保账款':'reinsurance_receivable',
@@ -72,12 +72,12 @@ zcfzb_name_dict = {
     u'应收保证金':'margin_receivable',
     u'内部应收款':'internal_receivable',
     u'买入返售金融资产':'buy-back_asset',
-    u'存货':'stock',
+    u'存货':'stock',#
     u'待摊费用':'prepaid_expenses',
     u'待处理流动资产损益':'pending_assets',
     u'一年内到期的非流动资产':'within_one_non-current',
     u'其他流动资产':'other_current_assets',
-    u'流动资产合计':'total_current_assets',
+    u'流动资产合计':'total_current_assets',#
     u'发放贷款及垫款':'loads_and_advances',
     u'可供出售金融资产':'available_for_sale_finacial_assets',
     u'持有至到期投资':'hold_to_maturity_investment',
@@ -145,7 +145,7 @@ zcfzb_name_dict = {
     u'长期递延收益':'long-term_deferred_in',
     u'递延所得税负债':'deferred_in_tax_liability',
     u'其他非流动负债':'other_non-current_liability',
-    u'非流动负债合计':'total_non-current_liability',
+    u'非流动负债合计':'total_noncurrent_liability',
     u'负债合计':'total_liability',
     u'实收资本':'pay-in_capital',
     u'资本公积':'capital_reserve',
@@ -262,3 +262,31 @@ name_dict = {'lrb':lrb_name_dict,'zcfzb':zcfzb_name_dict,'xjllb':xjllb_name_dict
 def getTableByName(name):
    name = name or 'lrb'
    return name_dict[name]
+   
+#颜色打印
+# 字体色     |       背景色         |   颜色描述
+# -----------------------------------------------------
+# 30        |        40       |   黑色
+# 31        |        41       |   红色
+# 32        |        42       |   绿色
+# 33        |        43       |   黃色
+# 34        |        44       |   蓝色
+# 35        |        45       |   紫红色
+# 36        |        46       |   青蓝色
+# 37        |        47       |    白色
+# -----------------------------------------------------
+# print打印有颜色字体显示方式
+
+# 0 终端默认设置
+# 1 高亮显示
+# 4 使用下划线
+# 5 闪烁
+# 7 反白显示
+# 8 不可见
+# 1
+# 0 终端默认设置
+# 1 高亮显示
+# 4 使用下划线
+# 5 闪烁
+# 7 反白显示
+# 8 不可见

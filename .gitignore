@@ -1,3 +1,4 @@
+*.pyc
 Debug.win32
 local.py
 local.pyc
@@ -5,4 +6,4 @@ Hshares.txt
 Sshares.txt
 token.txt
 instance/
-.vscode/
+

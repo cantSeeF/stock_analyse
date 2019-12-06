@@ -1,0 +1,29 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "stock",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/stock.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "stock2",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/stock2.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "mysql",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/mysql_op.py",
+            "console": "integratedTerminal"
+        },
+    ]
+}
