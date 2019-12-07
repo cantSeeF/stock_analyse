@@ -52,11 +52,15 @@ def cal_quick_rate(total_current_assets,stock,total_current_liability):
 
 def cal_receivable_turnover_rate(op_in,accounts_receivable):
    #应收账款周转率(次)
+   if accounts_receivable == 0:
+      return 0.0
    return round(float(op_in) / accounts_receivable,1)
 
 def cal_average_cash_days(op_in,accounts_receivable):
    #平均收现日数
    receivable_turnover_rate = cal_receivable_turnover_rate(op_in,accounts_receivable)
+   if receivable_turnover_rate == 0:
+      return 0.0
    return round(360.0 / receivable_turnover_rate,1)
 
 def cal_inventory_turnover(op_costs,stock):
@@ -102,6 +106,18 @@ def cal_net_interest_rate(net_profit,op_in):
    #净利率(%) = 纯益率 = 净利 / 营业收入
    return round(float(net_profit) / op_in * 100,1)
 
-def cal_cash_flow_rate(subtotal_of_inflows,total_current_liability):
-   #现金流量比率 = 经营活动现金流入 / 流动负债
-   return round(float(subtotal_of_inflows) / total_current_liability * 100,1)
+def cal_cash_flow_rate(net_flow_from_op,total_current_liability):
+   #现金流量比率 = 经营活动产生现金流量净额 / 流动负债
+   return round(float(net_flow_from_op) / total_current_liability * 100,1)
+
+def cal_cash_flow_allowance_rate(net_flow_from_op_5,paid_for_longterm_5,net_cash_longterm_5,stock_5,paid_for_distribution_5):
+   #现金流量允当比率 = 最近5年 经营活动产生现金流量净额 / 最近5年（资本支出 + 存货增加额 + 现金股利）
+   #分母有三部分组成：5年内资本支出的总额、5年存货余额、5年分配利润的总额
+   #5年资本支出总净额=∑（2012-2016）购建固定资产、无形资产和其他长期资产支付的现金-处置固定资产、无形资产和其他长期资产收回的现金净额
+   #5年存货余额=2016年存货金额-2012年存货金额
+   #5年分配利润总额=∑（2012-2016）分配股利、利润或偿还利息支付的现金
+   return round(float(net_flow_from_op_5) / (paid_for_longterm_5 - net_cash_longterm_5 + stock_5 + paid_for_distribution_5) * 100,1)
+
+def cal_cash_reinvestment_rate(net_flow_from_op,paid_for_distribution,tatol_assets,total_current_liability):
+   #现金再投资比率 = 经营活动产生现金流量净额 - 现金股利 / 固定资产毛额 + 长期投资 + 其他资产 + 营运资金 = （经营活动产生现金流量净额 - 分配股利、利润或偿付利息所支付的现金） / （总资产 - 流动负债）
+   return round(float(net_flow_from_op - paid_for_distribution) / (tatol_assets - total_current_liability) * 100,1)

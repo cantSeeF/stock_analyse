@@ -10,8 +10,8 @@ from config import define
 import utils
 #lrb，zcfzb，xjllb,zycwzb 利润，资产负债，现金流量，主要财务指标
 
-start_stock = 600500
-end_stock = 600502
+start_stock = 603288
+end_stock = 603289
 table_names = ['lrb','zcfzb','xjllb']
 def downloadData():
     #判断是否有更新(最新季度？)，存在，再下载
@@ -385,17 +385,94 @@ def analyseData(lrb_data,xjllb_data,zcfzb_data):
     str_result = zhJust(u'          现金流量比率')
     for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
         index = indexes_for_cal[index]
-        subtotal_of_inflows = xjllb_data['subtotal_of_inflows'][index]
+        net_flow_from_op = xjllb_data['net_flow_from_op'][index]
         total_current_liability = zcfzb_data['total_current_liability'][index]
-        str_result = str_result + str(utils.cal_cash_flow_rate(subtotal_of_inflows,total_current_liability)).ljust(15)
+        str_result = str_result + str(utils.cal_cash_flow_rate(net_flow_from_op,total_current_liability)).ljust(15)
+    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+
+    str_result = zhJust(u'          现金流量允当比率')
+    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+        index = indexes_for_cal[index]
+
+        yyyymmdd = report_dates[index].split('-')
+        if len(yyyymmdd) < 3:
+            continue
+        single_year = int(yyyymmdd[0])
+        single_month = int(yyyymmdd[1]) 
+        single_day = int(yyyymmdd[2])
+        count_to_add = 0
+        index_next = index
+
+        net_flow_from_op_5 = 0
+        paid_for_longterm_5 = 0
+        net_cash_longterm_5 = 0
+        stock_start = zcfzb_data['stock'][index]
+        stock_end = 0
+        paid_for_distribution_5 = 0
+        while count_to_add < 5:
+            net_flow_from_op_5 = net_flow_from_op_5 + xjllb_data['net_flow_from_op'][index_next]
+            paid_for_longterm_5 = paid_for_longterm_5 + xjllb_data['paid_for_longterm'][index_next]
+            net_cash_longterm_5 = net_cash_longterm_5 + xjllb_data['net_cash_longterm'][index_next]
+            stock_end = zcfzb_data['stock'][index_next]
+            paid_for_distribution_5 = paid_for_distribution_5 + xjllb_data['paid_for_distribution'][index_next]
+            count_to_add = count_to_add + 1
+
+            has_done = False
+            while 1:
+                index_next = index_next + 1
+                if not report_dates[index_next]:
+                    has_done = True
+                    break
+                yyyymmdd = report_dates[index_next].split('-')
+                if len(yyyymmdd) < 3:
+                    has_done = True
+                    break
+                single_month = int(yyyymmdd[1]) 
+                single_day = int(yyyymmdd[2])
+                if single_month == 12 and single_day == 31:
+                    break
+            if has_done:
+                break
+
+        str_result = str_result + str(utils.cal_cash_flow_allowance_rate(net_flow_from_op_5,paid_for_longterm_5,net_cash_longterm_5,stock_start - stock_end,paid_for_distribution_5)).ljust(15)
+    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+
+    str_result = zhJust(u'          现金再投资比率')
+    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+        index = indexes_for_cal[index]
+        net_flow_from_op = xjllb_data['net_flow_from_op'][index]
+        paid_for_distribution = xjllb_data['paid_for_distribution'][index]
+        tatol_assets = zcfzb_data['tatol_assets'][index]
+        total_current_liability = zcfzb_data['total_current_liability'][index]
+        str_result = str_result + str(utils.cal_cash_reinvestment_rate(net_flow_from_op,paid_for_distribution,tatol_assets,total_current_liability)).ljust(15)
+    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+
+    print('\n')
+    str_result = zhJust(u'营业活动现金流量(百万元)        ')
+    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+        index = indexes_for_cal[index]
+        net_flow_from_op = xjllb_data['net_flow_from_op'][index]
+        str_result = str_result + str(int(round(float(net_flow_from_op) / 100, 0))).ljust(15)
+    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+
+    str_result = zhJust(u'投资活动现金流量(百万元)        ')
+    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+        index = indexes_for_cal[index]
+        net_flows_from_investment = xjllb_data['net_flows_from_investment'][index]
+        str_result = str_result + str(int(round(float(net_flows_from_investment) / 100, 0))).ljust(15)
+    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+
+    str_result = zhJust(u'筹资活动现金流量(百万元)        ')
+    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+        index = indexes_for_cal[index]
+        net_cash_flow_from_finace = xjllb_data['net_cash_flow_from_finace'][index]
+        str_result = str_result + str(int(round(float(net_cash_flow_from_finace) / 100, 0))).ljust(15)
     print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
 def main():
     #downloadData()
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    stock_code = '600500'
-    
-    
+    stock_code = '603288'
     lrb = loadData(stock_code,'lrb')
     zcfzb = loadData(stock_code,'zcfzb')
     xjllb = loadData(stock_code,'xjllb')
