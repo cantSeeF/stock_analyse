@@ -38,7 +38,7 @@ def cal_total_liability_rate(total_liability,tatol_assets):
    #负债占资产比率
    return round(float(total_liability) / tatol_assets * 100,1)
 
-def cal_Longterm_funds_rate(total_owners_equity,total_noncurrent_liability,fixed,construction_in_progress,engineer_material):
+def cal_longterm_funds_rate(total_owners_equity,total_noncurrent_liability,fixed,construction_in_progress,engineer_material):
    #长期资金占不动产/厂房及设备比率 （所有者权益+非流动负债合计）/（固定资产+在建工程+工程物资）
    return round((float(total_owners_equity) + total_noncurrent_liability) / (fixed + construction_in_progress + engineer_material) * 100,1)
 
