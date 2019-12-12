@@ -10,12 +10,15 @@ from config import define
 import utils
 import os
 import threading
+
+import bs4
+
 #lrb，zcfzb，xjllb,zycwzb 利润，资产负债，现金流量，主要财务指标
 
 g_start_stock = 0
 g_end_stock = 1000
 
-g_stock_head_codes = ['000','300','600','601','603']#600最多，可以加线程
+g_stock_head_codes = ['000','002','300','600','601','603']#600最多，可以加线程
 g_table_names = ['lrb','zcfzb','xjllb']
 g_is_test = False
 if g_is_test:
@@ -25,15 +28,15 @@ if g_is_test:
 
 # mylock = thread.allocate_lock() 
 
-def downloadThread1(talbeName):
-    global g_stock_head_codes
-    print(talbeName)
-    print(g_stock_head_codes)
+# def downloadThread1(talbeName):
+#     global g_stock_head_codes
+#     print(talbeName)
+#     print(g_stock_head_codes)
 
-    for sd in range(0,100):
-        os.path.exists('base_data/lrb000;l001.csv')
-        print(talbeName)
-        time.sleep(1)
+#     for sd in range(0,100):
+#         os.path.exists('base_data/lrb000;l001.csv')
+#         print(talbeName)
+#         time.sleep(1)
 
 def downloadData():
     #判断是否有更新(最新季度？)，存在，再下载
@@ -376,8 +379,9 @@ def analyseData(stock_code,is_show = False):
         index = indexes_for_cal[index]
         total_current_assets = zcfzb_data['total_current_assets'][index]
         stock = zcfzb_data['stock'][index]
+        prepayments = zcfzb_data['prepayments'][index]
         total_current_liability = zcfzb_data['total_current_liability'][index]
-        quick_rate.append(utils.cal_quick_rate(total_current_assets,stock,total_current_liability))
+        quick_rate.append(utils.cal_quick_rate(total_current_assets,stock,prepayments,total_current_liability))
         str_result = str_result + str(quick_rate[max_count - indexOfSingle - 1]).ljust(15)
     print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
@@ -439,7 +443,7 @@ def analyseData(stock_code,is_show = False):
         indexOfSingle = index
         index = indexes_for_cal[index]
         op_in = lrb_data['op_in'][index]
-        fixed = zcfzb_data['fixed'][index]
+        fixed = zcfzb_data['net_value_of_fixed'][index]
         construction_in_progress = zcfzb_data['construction_in_progress'][index]
         engineer_material = zcfzb_data['engineer_material'][index]
         equipment_turnover.append(utils.cal_equipment_turnover(op_in,fixed,construction_in_progress,engineer_material))
@@ -690,33 +694,265 @@ def cal_score(stock_code):
     value_table = json.load(csvfile)
     tatal_score = 0
     #股东权益报酬率(%) RoE
-    tatal_roe = 0
+    sum_roe = 0
     is_roe_m0 = False
+    min_roe = 10000
     for roe in value_table['profitability']['return_on_equity']:
-        tatal_roe = tatal_roe + roe
-    average_roe = tatal_roe / len(value_table['profitability']['return_on_equity'])
-    if average_roe >= 35:
-        tatal_score = tatal_score + 550
-    elif average_roe >= 30:
-        tatal_score = tatal_score + 500
-    elif average_roe >= 25:
-        tatal_score = tatal_score + 450
-    elif average_roe >= 20:
-        tatal_score = tatal_score + 400
-    elif average_roe >= 15:
-        tatal_score = tatal_score + 300
-    elif average_roe >= 10:
-        tatal_score = tatal_score + 250
-    elif average_roe >= 0:
-        tatal_score = tatal_score + 0
+        if roe < 0:
+            is_roe_m0 = True
+        min_roe = min(min_roe,roe)
+        sum_roe = sum_roe + roe
+    average_roe = sum_roe / len(value_table['profitability']['return_on_equity'])
+    if not is_roe_m0:
+        if min_roe / average_roe < 0.3:
+            tatal_score = tatal_score + 0
+        elif average_roe >= 35:
+            tatal_score = tatal_score + 550
+        elif average_roe >= 30:
+            tatal_score = tatal_score + 500
+        elif average_roe >= 25:
+            tatal_score = tatal_score + 450
+        elif average_roe >= 20:
+            tatal_score = tatal_score + 400
+        elif average_roe >= 15:
+            tatal_score = tatal_score + 300
+        elif average_roe >= 10:
+            tatal_score = tatal_score + 250
     
-    #print(average_roe)
+    #总资产报酬率(%) RoA
+    sum_roa = 0
+    min_roa = 10000
+    for roa in value_table['profitability']['return_on_total_assets']:
+        sum_roa = sum_roa + roa
+        min_roa = min(min_roa,roa)
+    average_roa = sum_roa / len(value_table['profitability']['return_on_total_assets'])
+
+    if sum_roa == 0 or min_roa < 0:
+        tatal_score = tatal_score + 0
+    elif average_roa >= 15:
+        tatal_score = tatal_score + 100
+    elif average_roa >= 11:
+        tatal_score = tatal_score + 80
+    elif average_roa >= 7:
+        tatal_score = tatal_score + 50
+
+    #税后净利 规模(百万)
+    sum_net_profit = 0
+    for net_profit in value_table['profitability']['net_profits']:
+        sum_net_profit = sum_net_profit + net_profit
+    average_net_profit = sum_net_profit / len(value_table['profitability']['net_profits'])
+
+    if sum_net_profit == 0:
+        tatal_score = tatal_score + 0
+    elif average_net_profit >= 10000:
+        tatal_score = tatal_score + 150
+    elif average_net_profit >= 1000:
+        tatal_score = tatal_score + 100
+
+    #现金状况 分析
+    #总资产周转率（次）
+    sum_total_assets_turnover = 0
+    for total_assets_turnover in value_table['management_capacity']['total_assets_turnover']:
+        sum_total_assets_turnover = sum_total_assets_turnover + total_assets_turnover
+    average_total_assets_turnover = sum_total_assets_turnover / len(value_table['management_capacity']['total_assets_turnover'])
+
+
+    #现金与约当现金
+    sum_cash_rate = 0
+    for cash_rate in value_table['assetsAndLiabilities']['cash_rate']:
+        sum_cash_rate = sum_cash_rate + cash_rate
+    average_cash_rate = sum_cash_rate / len(value_table['assetsAndLiabilities']['cash_rate'])
+
+    if average_total_assets_turnover >= 0.8:
+        if average_cash_rate >= 10:
+            tatal_score = tatal_score + 50
+    else:
+        if average_cash_rate >= 20:
+            tatal_score = tatal_score + 50
+
+    #收现日数(日)
+    #平均收现日数
+    sum_average_cash_days = 0
+    for average_cash_days in value_table['management_capacity']['average_cash_days']:
+        sum_average_cash_days = sum_average_cash_days + average_cash_days
+    average_average_cash_days = sum_average_cash_days / len(value_table['management_capacity']['average_cash_days'])
+    
+    if average_average_cash_days <= 30:
+        tatal_score = tatal_score + 20
+
+    #销货日数(日)
+    #平均销货日数（平均在库天数）
+    sum_average_sale_days = 0
+    for average_sale_days in value_table['management_capacity']['average_sale_days']:
+        sum_average_sale_days = sum_average_sale_days + average_sale_days
+    average_average_sale_days = sum_average_sale_days / len(value_table['management_capacity']['average_sale_days'])
+
+    if average_average_sale_days <= 30:
+        tatal_score = tatal_score + 20
+
+    #收现日数+销货日数(日)
+    if average_average_cash_days + average_average_sale_days <= 40:
+        tatal_score = tatal_score + 20
+    elif average_average_cash_days + average_average_sale_days <= 60:
+        tatal_score = tatal_score + 10
+
+    #毛利率(%)
+    #营业毛利率'
+    sum_gross_profit_margin = 0
+    min_gross_profit_margin = 100
+    max_gross_profit_margin = 0
+    for gross_profit_margin in value_table['profitability']['gross_profit_margin']:
+        sum_gross_profit_margin = sum_gross_profit_margin + gross_profit_margin
+        min_gross_profit_margin = min(min_gross_profit_margin,gross_profit_margin)
+        max_gross_profit_margin = max(max_gross_profit_margin,gross_profit_margin)
+    average_gross_profit_margin = sum_gross_profit_margin / len(value_table['profitability']['gross_profit_margin'])
+    
+    if sum_gross_profit_margin == 0 or min_gross_profit_margin < 5:
+        tatal_score
+    elif min_gross_profit_margin / average_gross_profit_margin >= 0.7 and max_gross_profit_margin / average_gross_profit_margin <= 1.3:
+        tatal_score = tatal_score + 50
+    
+    #经营安全边际率(%)
+    sum_operating_margin_of_safety = 0
+    for operating_margin_of_safety in value_table['profitability']['operating_margin_of_safety']:
+        sum_operating_margin_of_safety = sum_operating_margin_of_safety + operating_margin_of_safety
+    average_operating_margin_of_safety = sum_operating_margin_of_safety / len(value_table['profitability']['operating_margin_of_safety'])
+    if average_operating_margin_of_safety >= 70:
+        tatal_score = tatal_score + 50
+    elif average_operating_margin_of_safety >= 50:
+        tatal_score = tatal_score + 30
+    elif average_operating_margin_of_safety >= 30:
+        tatal_score = tatal_score + 10
+
+    # 税后净利 积分算法(当年的净利比去年是增加还是减少，增加则加分，减少则减分)
+    net_profits = value_table['profitability']['net_profits']
+
+    #len_net_profits = len(net_profits)
+    if sum_net_profit != 0:
+        if net_profits[4] > net_profits[3]:
+            tatal_score = tatal_score + 30
+        else:
+            tatal_score = tatal_score - 30
+
+        if net_profits[3] > net_profits[2]:
+            tatal_score = tatal_score + 25
+        else:
+            tatal_score = tatal_score - 25
+
+        if net_profits[2] > net_profits[1]:
+            tatal_score = tatal_score + 20
+        else:
+            tatal_score = tatal_score - 20
+
+        if net_profits[1] > net_profits[0]:
+            tatal_score = tatal_score + 15
+        else:
+            tatal_score = tatal_score - 15
+
+    #营业活动现金流量
+
+    sum_net_flow_from_op = 0
+    sum_net_flow_from_ops = value_table['net_flow_from_ops']
+    for net_flow_from_op in sum_net_flow_from_ops:
+        sum_net_flow_from_op = sum_net_flow_from_op + net_flow_from_op  
+    
+    if sum_net_flow_from_op != 0:
+        if sum_net_flow_from_ops[4] > sum_net_flow_from_ops[3]:
+            tatal_score = tatal_score + 30
+        else:
+            tatal_score = tatal_score - 30
+
+        if sum_net_flow_from_ops[3] > sum_net_flow_from_ops[2]:
+            tatal_score = tatal_score + 25
+        else:
+            tatal_score = tatal_score - 25
+
+        if sum_net_flow_from_ops[2] > sum_net_flow_from_ops[1]:
+            tatal_score = tatal_score + 20
+        else:
+            tatal_score = tatal_score - 20
+
+        if sum_net_flow_from_ops[1] > sum_net_flow_from_ops[0]:
+            tatal_score = tatal_score + 15
+        else:
+            tatal_score = tatal_score - 15
+
+        print(stock_code + ' score ' + str(tatal_score))
+        return tatal_score
+    
+def gethtml():
+    content = web.urlopen('http://quotes.money.163.com/f10/gszl_600500.html#11a01').read()
+    soup = bs4.BeautifulSoup(content,features="lxml")
+    #输出第一个 title 标签
+    # print(soup.head.contents[1])
+    # print soup.head.meta.attrs
+    #print (soup.head.meta['content'].decode('utf-8'))
+    #print soup.head.contents[0]
+    
+    # #输出第一个 title 标签的标签名称
+    # print soup.title.name
+    
+    # #输出第一个 title 标签的包含内容
+    #print soup.head.meta.strings
+    
+    # #输出第一个 title 标签的父标签的标签名称
+    # print soup.title.parent.name
+    
+    # #输出第一个  p 标签
+    # print soup.p
+
+    # #输出第一个  p 标签的 class 属性内容
+    # print soup.body['class']
+    
+    # #输出第一个  a 标签的  href 属性内容
+    # print soup.a['href']
+    # '''
+    # soup的属性可以被添加,删除或修改. 再说一次, soup的属性操作方法与字典一样
+    # '''
+    # #修改第一个 a 标签的href属性为 http://www.baidu.com/
+    # soup.a['href'] = 'http://www.baidu.com/'
+    
+    # #给第一个 a 标签添加 name 属性
+    # soup.a['name'] = u'百度'
+    
+    # #删除第一个 a 标签的 class 属性为
+    # del soup.a['class']
+    
+    # ##输出第一个  p 标签的所有子节点
+    # print soup.body.contents
+    
+    # #输出第一个  a 标签
+    # print soup.a
+    
+    # #输出所有的  a 标签，以列表形式显示
+    # print soup.find_all('a')
+    
+    # #输出第一个 id 属性等于  link3 的  a 标签
+    # print soup.find(id="link3")
+    
+    # #获取所有文字内容
+    # print(soup.get_text())
+    
+    # #输出第一个  a 标签的所有属性信息
+    # print soup.a.attrs
+    
+    # for link in soup.find_all('a'):
+    #     #获取 link 的  href 属性内容
+    #     print(link.get('href'))
+    
+    # #对soup.p的子节点进行循环输出    
+    # for child in soup.body.children:
+    #     print(child)
+    
+    # #正则匹配，名字中带有b的标签
+    # for tag in soup.find_all(re.compile("b")):
+    #     print(tag.name)
 
 def main():
-    #downloadData()
+    downloadData()
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    # analyseData(stock_code = '600500')
-    cal_score(stock_code = '600500')
+    #analyseData(stock_code = '600500')
+    #cal_score(stock_code = '600500')
 
 if __name__ == '__main__':
     main()

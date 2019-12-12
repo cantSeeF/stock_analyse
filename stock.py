@@ -7,7 +7,7 @@ from config import local
 ts.set_token(local.get_token())
 pro = ts.pro_api()
 #df = pro.trade_cal(exchange='', start_date='20180901', end_date='20181001', is_open='1')
-'''
+
 dfH = pro.stock_basic(is_hs='H',list_status='L',exchange='SSE')
 #print(type(dfH))
 foH = open("Hshares.txt", "w")
@@ -20,6 +20,7 @@ for index,row in dfH.iterrows():
    industry_h = row['industry']
    market_h = row['market']
    list_date_h = row['list_date']
+
    foH.write((str(index)+'   '+ts_code_h+'  '+symbol_h+'   '+name_h+' '+ area_h+' '+industry_h+' '+market_h+'   '+list_date_h).encode('utf-8').strip())
    foH.write('\n')
 foH.close()
@@ -38,7 +39,7 @@ for index,row in dfS.iterrows():
    foS.write((str(index)+'   '+ts_code_s+'  '+symbol_s+'   '+name_s+' '+ area_s+' '+industry_s+' '+market_s+'   '+list_date_s).encode('utf-8').strip())
    foS.write('\n')
 foS.close()
-'''
+
 '''
 df = pro.hs_const(hs_type='SH') 
 for index,row in df.iterrows():

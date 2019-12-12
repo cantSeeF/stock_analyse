@@ -46,9 +46,9 @@ def cal_current_rate(total_current_assets,total_current_liability):
    #流动比率
    return round(float(total_current_assets) / total_current_liability * 100,1)
 
-def cal_quick_rate(total_current_assets,stock,total_current_liability):
-   #速动比率
-   return round((float(total_current_assets) - stock) / total_current_liability * 100,1)
+def cal_quick_rate(total_current_assets,stock,prepayments,total_current_liability):
+   #速动比率 = 流动资产 - 存货 - 预付款项 / 流动负债
+   return round((float(total_current_assets) - stock - prepayments) / total_current_liability * 100,1)
 
 def cal_receivable_turnover_rate(op_in,accounts_receivable):
    #应收账款周转率(次)

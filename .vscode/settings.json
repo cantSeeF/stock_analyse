@@ -1,0 +1,5 @@
+{
+    "search.exclude": {
+        "base_data/": true
+    }
+}
