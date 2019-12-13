@@ -20,6 +20,7 @@ g_end_stock = 1000
 
 g_stock_head_codes = ['000','002','300','600','601','603']#600最多，可以加线程
 g_table_names = ['lrb','zcfzb','xjllb']
+g_stock_codes = {}
 g_is_test = False
 if g_is_test:
     g_stock_head_codes = ['600']
@@ -69,6 +70,9 @@ def downloadThread(stock_head,talbeName):
             stock_code = stock_head + '0' + str(count)
         else:
             stock_code  = stock_head + str(count)
+        
+        if not g_stock_codes.has_key(stock_code):
+            continue
         file_path = 'base_data/' + talbeName + stock_code + '.csv'
         # print(file_path)
         try:
@@ -105,7 +109,6 @@ def loadData(stock_code,table_name):
     try:
         csvfile = open('base_data/' + table_name + stock_code + '.csv', 'r')
     except Exception as e:
-        print(stock_code + ' open wrong')
         print(e)
         return
     dictionary = {}
@@ -138,6 +141,7 @@ def loadData(stock_code,table_name):
     # for key in xjllb_name_dict:
     #     print(key)
     #     print(abc[xjllb_name_dict[key]])
+
 def zhJust(string,length=28):
     difference = length -  len(string) # 计算限定长度为20时需要补齐多少个空格
     if difference == 0:  # 若差值为0则不需要补
@@ -173,37 +177,61 @@ def getFontColor():
         g_font_color = g_font_color + 1
     return g_font_color
 
-def analyseData(stock_code,is_show = False):
+def analyseData(stock_code,is_show = True):
     lrb_data = loadData(stock_code,'lrb')
     zcfzb_data = loadData(stock_code,'zcfzb')
     xjllb_data = loadData(stock_code,'xjllb')
 
     if not lrb_data or not xjllb_data or not zcfzb_data:
-        print('loss data')
+        print('loss ' + stock_code + ', unlisted')
         return
     
     local_time = time.localtime()
     cur_year = int(time.strftime("%Y", local_time))
     #print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
-    report_dates = lrb_data['report_date']
     max_count = 5
-    indexes_for_cal = []
-    for index in range(len(report_dates)):
-        yyyymmdd = report_dates[index].split('-')
+    indexes_for_cal_lrb = []
+    for index in range(len(lrb_data['report_date'])):
+        yyyymmdd = lrb_data['report_date'][index].split('-')
         if len(yyyymmdd) < 3:
             continue
         single_year = int(yyyymmdd[0])
         single_month = int(yyyymmdd[1]) 
         single_day = int(yyyymmdd[2])
 
-        if single_year < cur_year and single_month == 12 and single_day == 31 and len(indexes_for_cal) < max_count:
-            indexes_for_cal.append(index)
+        if single_year < cur_year and single_month == 12 and single_day == 31 and len(indexes_for_cal_lrb) < max_count:
+            indexes_for_cal_lrb.append(index)
+
+    indexes_for_cal_zcfzb = []
+    for index in range(len(zcfzb_data['report_date'])):
+        yyyymmdd = zcfzb_data['report_date'][index].split('-')
+        if len(yyyymmdd) < 3:
+            continue
+        single_year = int(yyyymmdd[0])
+        single_month = int(yyyymmdd[1]) 
+        single_day = int(yyyymmdd[2])
+
+        if single_year < cur_year and single_month == 12 and single_day == 31 and len(indexes_for_cal_zcfzb) < max_count:
+            indexes_for_cal_zcfzb.append(index)
+
+    indexes_for_cal_xjllb = []
+    for index in range(len(xjllb_data['report_date'])):
+        yyyymmdd = xjllb_data['report_date'][index].split('-')
+        if len(yyyymmdd) < 3:
+            continue
+        single_year = int(yyyymmdd[0])
+        single_month = int(yyyymmdd[1]) 
+        single_day = int(yyyymmdd[2])
+
+        if single_year < cur_year and single_month == 12 and single_day == 31 and len(indexes_for_cal_xjllb) < max_count:
+            indexes_for_cal_xjllb.append(index)
 
 
     value_table = {'year':[cur_year - 5,cur_year - 4,cur_year - 3,cur_year - 2,cur_year - 1]}
-    #print(indexes_for_cal)
+    #print(indexes_for_cal_lrb)
     str_result = zhJust(u'资产负债比率（占总资产%：）    ') + showYear(cur_year)
-    print("\033[0;37;42m{0}\033[0m".format(str_result))
+    if is_show:
+        print("\033[0;37;42m{0}\033[0m".format(str_result))
     
     assetsAndLiabilities = {}
     value_table['assetsAndLiabilities'] = assetsAndLiabilities
@@ -211,142 +239,155 @@ def analyseData(stock_code,is_show = False):
     cash_rate = []
     assetsAndLiabilities['cash_rate'] = cash_rate
     indexOfSingle = 0
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         money_funds = zcfzb_data['money_funds'][index]
+        settlement_provision = zcfzb_data['settlement_provision'][index]
+        disburse_funds = zcfzb_data['disburse_funds'][index]
         transactional_finacial_asset = zcfzb_data['transactional_finacial_asset'][index]
         derivative_finacial_asset = zcfzb_data['derivative_finacial_asset'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
-        cash_rate.append(utils.cal_cash_rate(money_funds,transactional_finacial_asset,derivative_finacial_asset,tatol_assets))
+        cash_rate.append(utils.cal_cash_rate(money_funds,settlement_provision,disburse_funds,transactional_finacial_asset,derivative_finacial_asset,tatol_assets))
         str_result = str_result + str(cash_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'     应收账款')
     accounts_receivable_rate = []
     assetsAndLiabilities['accounts_receivable_rate'] = accounts_receivable_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         accounts_receivable = zcfzb_data['accounts_receivable'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         accounts_receivable_rate.append(utils.cal_accounts_receivable_rate(accounts_receivable,tatol_assets))
         str_result = str_result + str(accounts_receivable_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'     存货')
     stock_rate = []
     assetsAndLiabilities['stock_rate'] = stock_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         stock = zcfzb_data['stock'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         stock_rate.append(utils.cal_stock_rate(stock,tatol_assets))
         str_result = str_result + str(stock_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
     
     str_result = zhJust(u'     流动资产')
     total_current_assets_rate = []
     assetsAndLiabilities['total_current_assets_rate'] = total_current_assets_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         total_current_assets = zcfzb_data['total_current_assets'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         total_current_assets_rate.append(utils.cal_total_current_assets_rate(total_current_assets,tatol_assets))
         str_result = str_result + str(total_current_assets_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
     
     str_result = zhJust(u'     总资产')
     total_assets = []
     assetsAndLiabilities['total_assets'] = total_assets
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
         total_assets.append(100)
         str_result = str_result + '100'.ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'     应付账款')
     accounts_payable_rate = []
     assetsAndLiabilities['accounts_payable_rate'] = accounts_payable_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         accounts_payable = zcfzb_data['accounts_payable'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         accounts_payable_rate.append(utils.cal_accounts_payable_rate(accounts_payable,tatol_assets))
         str_result = str_result + str(accounts_payable_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'     流动负债')
     total_current_liability_rate = []
     assetsAndLiabilities['total_current_liability_rate'] = total_current_liability_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         total_current_liability = zcfzb_data['total_current_liability'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         total_current_liability_rate.append(utils.cal_total_current_liability_rate(total_current_liability,tatol_assets))
         str_result = str_result + str(total_current_liability_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'     长期负债')
     total_noncurrent_liability_rate = []
     assetsAndLiabilities['total_noncurrent_liability_rate'] = total_noncurrent_liability_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         total_noncurrent_liability = zcfzb_data['total_noncurrent_liability'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         total_noncurrent_liability_rate.append(utils.cal_total_noncurrent_liability_rate(total_noncurrent_liability,tatol_assets))
         str_result = str_result + str(total_noncurrent_liability_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'     股东权益')
     total_owners_equity_rate = []
     assetsAndLiabilities['total_owners_equity_rate'] = total_owners_equity_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         total_owners_equity = zcfzb_data['total_owners_equity'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         total_owners_equity_rate.append(utils.cal_total_owners_equity_rate(total_owners_equity,tatol_assets))
         str_result = str_result + str(total_owners_equity_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'     总负债加股东权益')
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
         str_result = str_result + '100'.ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
-    print('\n')
     str_result = zhJust(u'类别      财务比例    ') + showYear(cur_year)
-    print("\033[0;37;42m{0}\033[0m".format(str_result))
-
-    print(zhJust(u'财务结构'))
+    if is_show:
+        print('\n')
+        print("\033[0;37;42m{0}\033[0m".format(str_result))
+        print(zhJust(u'财务结构'))
     
     financial_ratio = {}
     value_table['financial_ratio'] = financial_ratio
     str_result = zhJust(u'          负债占资产比率')
     total_liability_rate = []
     financial_ratio['total_liability_rate'] = total_liability_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         total_liability = zcfzb_data['total_liability'][index]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         total_liability_rate.append(utils.cal_total_liability_rate(total_liability,tatol_assets))
         str_result = str_result + str(total_liability_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          长期资金占不动产/厂房及设备比率')
     longterm_funds_rate = []
     financial_ratio['longterm_funds_rate'] = longterm_funds_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         total_owners_equity = zcfzb_data['total_owners_equity'][index]
         total_noncurrent_liability = zcfzb_data['total_noncurrent_liability'][index]
         fixed = zcfzb_data['fixed'][index]
@@ -354,240 +395,270 @@ def analyseData(stock_code,is_show = False):
         engineer_material = zcfzb_data['engineer_material'][index]
         longterm_funds_rate.append(utils.cal_longterm_funds_rate(total_owners_equity,total_noncurrent_liability,fixed,construction_in_progress,engineer_material))
         str_result = str_result + str(longterm_funds_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
-    print(zhJust(u'偿债能力'))
+    if is_show:
+        print(zhJust(u'偿债能力'))
     solvency = {}
     value_table['solvency'] = solvency
     str_result = zhJust(u'          流动比率')
     current_rate = []
     solvency['current_rate'] = current_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         total_current_assets = zcfzb_data['total_current_assets'][index]
         total_current_liability = zcfzb_data['total_current_liability'][index]
         current_rate.append(utils.cal_current_rate(total_current_assets,total_current_liability))
         str_result = str_result + str(current_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          速动比率')
     quick_rate = []
     solvency['quick_rate'] = quick_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         total_current_assets = zcfzb_data['total_current_assets'][index]
         stock = zcfzb_data['stock'][index]
         prepayments = zcfzb_data['prepayments'][index]
         total_current_liability = zcfzb_data['total_current_liability'][index]
         quick_rate.append(utils.cal_quick_rate(total_current_assets,stock,prepayments,total_current_liability))
         str_result = str_result + str(quick_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
-    print(zhJust(u'经营能力'))
+    if is_show:
+        print(zhJust(u'经营能力'))
     management_capacity = {}
     value_table['management_capacity'] = management_capacity
     receivable_turnover_rate = []
     management_capacity['receivable_turnover_rate'] = receivable_turnover_rate
     str_result = zhJust(u'          应收账款周转率（次）')
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
-        op_in = lrb_data['op_in'][index]
+        index = indexes_for_cal_lrb[indexOfSingle]
+        total_op_in = lrb_data['total_op_in'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         accounts_receivable = zcfzb_data['accounts_receivable'][index]
-        receivable_turnover_rate.append(utils.cal_receivable_turnover_rate(op_in,accounts_receivable))
+        receivable_turnover_rate.append(utils.cal_receivable_turnover_rate(total_op_in,accounts_receivable))
         str_result = str_result + str(receivable_turnover_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          平均收现日数')
     average_cash_days = []
     management_capacity['average_cash_days'] = average_cash_days
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
-        op_in = lrb_data['op_in'][index]
+        index = indexes_for_cal_lrb[indexOfSingle]
+        total_op_in = lrb_data['total_op_in'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         accounts_receivable = zcfzb_data['accounts_receivable'][index]
-        average_cash_days.append(utils.cal_average_cash_days(op_in,accounts_receivable))
+        average_cash_days.append(utils.cal_average_cash_days(total_op_in,accounts_receivable))
         str_result = str_result + str(average_cash_days[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          存货周转率（次）')
     inventory_turnover = []
     management_capacity['inventory_turnover'] = inventory_turnover
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_zcfzb[index]
         op_costs = lrb_data['op_costs'][index]
         stock = zcfzb_data['stock'][index]
         inventory_turnover.append(utils.cal_inventory_turnover(op_costs,stock))
         str_result = str_result + str(inventory_turnover[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          平均销货日数（平均在库天数）')
     average_sale_days = []
     management_capacity['average_sale_days'] = average_sale_days
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_lrb[indexOfSingle]
         op_costs = lrb_data['op_costs'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         stock = zcfzb_data['stock'][index]
         average_sale_days.append(utils.cal_average_sale_days(op_costs,stock))
         str_result = str_result + str(average_sale_days[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          不动产及厂房及设备周转率（次）')
     equipment_turnover = []
     management_capacity['equipment_turnover'] = equipment_turnover
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
-        op_in = lrb_data['op_in'][index]
+        index = indexes_for_cal_lrb[indexOfSingle]
+        total_op_in = lrb_data['total_op_in'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         fixed = zcfzb_data['net_value_of_fixed'][index]
         construction_in_progress = zcfzb_data['construction_in_progress'][index]
         engineer_material = zcfzb_data['engineer_material'][index]
-        equipment_turnover.append(utils.cal_equipment_turnover(op_in,fixed,construction_in_progress,engineer_material))
+        equipment_turnover.append(utils.cal_equipment_turnover(total_op_in,fixed,construction_in_progress,engineer_material))
         str_result = str_result + str(equipment_turnover[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          总资产周转率（次）')
     total_assets_turnover = []
     management_capacity['total_assets_turnover'] = total_assets_turnover
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
-        op_in = lrb_data['op_in'][index]
+        index = indexes_for_cal_lrb[indexOfSingle]
+        total_op_in = lrb_data['total_op_in'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         tatol_assets = zcfzb_data['tatol_assets'][index]
-        total_assets_turnover.append(utils.cal_total_assets_turnover(op_in,tatol_assets))
+        total_assets_turnover.append(utils.cal_total_assets_turnover(total_op_in,tatol_assets))
         str_result = str_result + str(total_assets_turnover[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
-    print(zhJust(u'获利能力'))
+    if is_show:
+        print(zhJust(u'获利能力'))
     profitability = {}
     value_table['profitability'] = profitability
     str_result = zhJust(u'          股东权益报酬率RoE ',length = 30)
     return_on_equity = []
     profitability['return_on_equity'] = return_on_equity
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_lrb[indexOfSingle]
         net_profit_company = lrb_data['net_profit_company'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         total_owners_equity = zcfzb_data['total_shareholder_parent'][index]
         return_on_equity.append(utils.cal_return_on_equity(net_profit_company,total_owners_equity))
         str_result = str_result + str(return_on_equity[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          总资产报酬率RoA ',length = 30)
     return_on_total_assets = []
     profitability['return_on_total_assets'] = return_on_total_assets
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_lrb[indexOfSingle]
         net_profit_company = lrb_data['net_profit_company'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         total_liability_and_equity = zcfzb_data['total_liability_and_equity'][index]
         return_on_total_assets.append(utils.cal_return_on_total_assets(net_profit_company,total_liability_and_equity))
         str_result = str_result + str(return_on_total_assets[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          营业毛利率1 ',length = 29)
     gross_profit_margin = []
     profitability['gross_profit_margin'] = gross_profit_margin
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
-        op_in = lrb_data['op_in'][index]
+        index = indexes_for_cal_lrb[index]
+        total_op_in = lrb_data['total_op_in'][index]
         op_costs = lrb_data['op_costs'][index]
         R_and_D_exp = lrb_data['R_and_D_exp'][index]
         business_tariff_and_annex = lrb_data['business_tariff_and_annex'][index]
-        gross_profit_margin.append(utils.cal_gross_profit_margin(op_in,op_costs,R_and_D_exp,business_tariff_and_annex))
+        gross_profit_margin.append(utils.cal_gross_profit_margin(total_op_in,op_costs,R_and_D_exp,business_tariff_and_annex))
         str_result = str_result + str(gross_profit_margin[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          营业利益率2 ',length = 29)
     operating_margin = []
     profitability['operating_margin'] = operating_margin
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_lrb[index]
         op_profit = lrb_data['op_profit'][index]
-        op_in = lrb_data['op_in'][index]
-        operating_margin.append(utils.cal_operating_margin(op_profit,op_in))
+        total_op_in = lrb_data['total_op_in'][index]
+        operating_margin.append(utils.cal_operating_margin(op_profit,total_op_in))
         str_result = str_result + str(operating_margin[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          经营安全边际率2/1 ',length = 30)
     operating_margin_of_safety = []
     profitability['operating_margin_of_safety'] = operating_margin_of_safety
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_lrb[index]
         op_profit = lrb_data['op_profit'][index]
-        op_in = lrb_data['op_in'][index]
+        total_op_in = lrb_data['total_op_in'][index]
         op_costs = lrb_data['op_costs'][index]
         R_and_D_exp = lrb_data['R_and_D_exp'][index]
         business_tariff_and_annex = lrb_data['business_tariff_and_annex'][index]
-        operating_margin_of_safety.append(utils.cal_operating_margin_of_safety(op_in,op_costs,R_and_D_exp,business_tariff_and_annex,op_profit))
+        operating_margin_of_safety.append(utils.cal_operating_margin_of_safety(total_op_in,op_costs,R_and_D_exp,business_tariff_and_annex,op_profit))
         str_result = str_result + str(operating_margin_of_safety[max_count - indexOfSingle - 1]).ljust(15)  
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          净利率 = 纯益率 ',length = 30)
     net_interest_rate = []
     profitability['net_interest_rate'] = net_interest_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_lrb[index]
         net_profit = lrb_data['net_profit'][index]
-        op_in = lrb_data['op_in'][index]
-        net_interest_rate.append(utils.cal_net_interest_rate(net_profit,op_in))
+        total_op_in = lrb_data['total_op_in'][index]
+        net_interest_rate.append(utils.cal_net_interest_rate(net_profit,total_op_in))
         str_result = str_result + str(net_interest_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          每股盈余（元）')
     basic_earning_per_shares = []
     profitability['basic_earning_per_shares'] = basic_earning_per_shares
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_lrb[index]
         basic_earning_per_share = lrb_data['basic_earning_per_share'][index]
         basic_earning_per_shares.append(basic_earning_per_share)
         str_result = str_result + str(basic_earning_per_share).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          税后净利（百万元）')
     net_profits = []
     profitability['net_profits'] = net_profits
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_lrb[index]
         net_profit = lrb_data['net_profit'][index]
         net_profit = int(round(float(net_profit) / 100,0))
         net_profits.append(net_profit)
         str_result = str_result + str(net_profit).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
-    print(zhJust(u'现金流量'))
+    if is_show:print(zhJust(u'现金流量'))
+
     cash_flow = {}
     value_table['cash_flow'] = cash_flow
     str_result = zhJust(u'          现金流量比率')
     cash_flow_rate = []
     cash_flow['cash_flow_rate'] = cash_flow_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_xjllb[indexOfSingle]
         net_flow_from_op = xjllb_data['net_flow_from_op'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         total_current_liability = zcfzb_data['total_current_liability'][index]
         cash_flow_rate.append(utils.cal_cash_flow_rate(net_flow_from_op,total_current_liability))
         str_result = str_result + str(cash_flow_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          现金流量允当比率')
     cash_flow_allowance_rate = []
     cash_flow['cash_flow_allowance_rate'] = cash_flow_allowance_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_xjllb[indexOfSingle]
 
-        yyyymmdd = report_dates[index].split('-')
+        yyyymmdd = xjllb_data['report_date'][index].split('-')
         if len(yyyymmdd) < 3:
             continue
         single_year = int(yyyymmdd[0])
@@ -599,24 +670,24 @@ def analyseData(stock_code,is_show = False):
         net_flow_from_op_5 = 0
         paid_for_longterm_5 = 0
         net_cash_longterm_5 = 0
-        stock_start = zcfzb_data['stock'][index]
+        stock_start = zcfzb_data['stock'][indexes_for_cal_zcfzb[indexOfSingle]]
         stock_end = 0
         paid_for_distribution_5 = 0
         while count_to_add < 5:
             net_flow_from_op_5 = net_flow_from_op_5 + xjllb_data['net_flow_from_op'][index_next]
             paid_for_longterm_5 = paid_for_longterm_5 + xjllb_data['paid_for_longterm'][index_next]
             net_cash_longterm_5 = net_cash_longterm_5 + xjllb_data['net_cash_longterm'][index_next]
-            stock_end = zcfzb_data['stock'][index_next]
             paid_for_distribution_5 = paid_for_distribution_5 + xjllb_data['paid_for_distribution'][index_next]
+            date_end = xjllb_data['report_date'][index_next]
             count_to_add = count_to_add + 1
 
             has_done = False
             while 1:
                 index_next = index_next + 1
-                if not report_dates[index_next]:
+                if not xjllb_data['report_date'][index_next]:
                     has_done = True
                     break
-                yyyymmdd = report_dates[index_next].split('-')
+                yyyymmdd = xjllb_data['report_date'][index_next].split('-')
                 if len(yyyymmdd) < 3:
                     has_done = True
                     break
@@ -626,62 +697,93 @@ def analyseData(stock_code,is_show = False):
                     break
             if has_done:
                 break
+        
+        for index_end in range(len(zcfzb_data['report_date'])):
+            if date_end == zcfzb_data['report_date'][index_end]:
+                stock_end = zcfzb_data['stock'][index_end]
         cash_flow_allowance_rate.append(utils.cal_cash_flow_allowance_rate(net_flow_from_op_5,paid_for_longterm_5,net_cash_longterm_5,stock_start - stock_end,paid_for_distribution_5))
         str_result = str_result + str(cash_flow_allowance_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'          现金再投资比率')
     cash_reinvestment_rate = []
     cash_flow['cash_reinvestment_rate'] = cash_reinvestment_rate
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_xjllb[indexOfSingle]
         net_flow_from_op = xjllb_data['net_flow_from_op'][index]
         paid_for_distribution = xjllb_data['paid_for_distribution'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         tatol_assets = zcfzb_data['tatol_assets'][index]
         total_current_liability = zcfzb_data['total_current_liability'][index]
         cash_reinvestment_rate.append(utils.cal_cash_reinvestment_rate(net_flow_from_op,paid_for_distribution,tatol_assets,total_current_liability))
         str_result = str_result + str(cash_reinvestment_rate[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
-
-    print('\n')
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+        print('\n')
     str_result = zhJust(u'营业活动现金流量(百万元)        ')
     net_flow_from_ops = []
     value_table['net_flow_from_ops'] = net_flow_from_ops
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_xjllb[index]
         net_flow_from_op = xjllb_data['net_flow_from_op'][index]
         net_flow_from_ops.append(int(round(float(net_flow_from_op) / 100, 0)))
         str_result = str_result + str(net_flow_from_ops[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'投资活动现金流量(百万元)        ')
     net_flows_from_investments = []
     value_table['net_flows_from_investments'] = net_flows_from_investments
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_xjllb[index]
         net_flows_from_investment = xjllb_data['net_flows_from_investment'][index]
         net_flows_from_investments.append(int(round(float(net_flows_from_investment) / 100, 0)))
         str_result = str_result + str(net_flows_from_investments[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     str_result = zhJust(u'筹资活动现金流量(百万元)        ')
     net_cash_flow_from_finaces = []
     value_table['net_cash_flow_from_finaces'] = net_cash_flow_from_finaces
-    for index in range(len(indexes_for_cal) - 1,-1,-1):#需要倒序
+    for index in range(max_count - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal[index]
+        index = indexes_for_cal_xjllb[index]
         net_cash_flow_from_finace = xjllb_data['net_cash_flow_from_finace'][index]
         net_cash_flow_from_finaces.append(int(round(float(net_cash_flow_from_finace) / 100, 0)))
         str_result = str_result + str(net_cash_flow_from_finaces[max_count - indexOfSingle - 1]).ljust(15)
-    print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
     json_values = json.dumps(value_table)
     fw = open('base_data/value/' + stock_code + '.json', 'w')
     fw.write(json_values)
     fw.close()
+    
+def analyseAllData():
+    global os
+    for stock_head in g_stock_head_codes:
+        for count in range(g_start_stock,g_end_stock):
+            stock_code = ''
+            if count < 10:
+                stock_code = stock_head + '00' + str(count)
+            elif count < 100:
+                stock_code = stock_head + '0' + str(count)
+            else:
+                stock_code  = stock_head + str(count)
+            if not g_stock_codes.has_key(stock_code):
+                continue
+            file_path = 'base_data/value/' + stock_code + '.json'
+            #print(file_path)
+            if not os.path.exists(file_path):
+                print('analyse ' + stock_code)
+                analyseData(stock_code = stock_code,is_show=False)
+            else:
+                print('json ' + stock_code + ' is exist')
+
 
 def cal_score(stock_code):
     try:
@@ -948,10 +1050,37 @@ def gethtml():
     # for tag in soup.find_all(re.compile("b")):
     #     print(tag.name)
 
+def deleteFile():
+    for stock_head in g_stock_head_codes:
+        for talbeName in g_table_names:
+            for count in range(g_start_stock,g_end_stock):
+                stock_code = ''
+                if count < 10:
+                    stock_code = stock_head + '00' + str(count)
+                elif count < 100:
+                    stock_code = stock_head + '0' + str(count)
+                else:
+                    stock_code  = stock_head + str(count)
+                file_path = 'base_data/' + talbeName + stock_code + '.csv'
+                if os.path.exists(file_path) and not g_stock_codes.has_key(stock_code):
+                    os.remove(file_path)
+                    print('remove ' + talbeName + stock_code)
+
+def initGStockCodes():
+    business_file = open("base_data/business/business.json", "r")
+    business_data = json.load(business_file)
+    #g_stock_codes
+    for stock_dic in business_data:
+        stock_code = stock_dic['ts_code'][0:6]
+        g_stock_codes[stock_code] = 1
+
 def main():
-    downloadData()
+    initGStockCodes()
+    #deleteFile()
+    #downloadData()
+    #analyseAllData()
+    analyseData(stock_code = '002711')
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    #analyseData(stock_code = '600500')
     #cal_score(stock_code = '600500')
 
 if __name__ == '__main__':
