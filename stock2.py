@@ -17,6 +17,29 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+import heapq
+
+class Node:
+    def __init__(self,stock_code,stock_name,score):
+        self.stock_code = stock_code
+        self.stock_name = stock_name
+        self.score = score
+
+class TopKHeap(object):
+    def __init__(self, k):
+        self.k = k
+        self.data = []
+
+    def push(self, elem):
+        if len(self.data) < self.k:
+            heapq.heappush(self.data, elem)
+        else:
+            topk_small = self.data[0].score
+            if elem.score > topk_small:
+                heapq.heapreplace(self.data, elem)
+    def topk(self):
+        return [x for x in reversed([heapq.heappop(self.data) for x in xrange(len(self.data))])]
+
 
 #lrb，zcfzb，xjllb,zycwzb 利润，资产负债，现金流量，主要财务指标
 
@@ -26,6 +49,8 @@ g_end_stock = 1000
 g_stock_head_codes = ['000','002','300','600','601','603']#600最多，可以加线程
 g_table_names = ['lrb','zcfzb','xjllb']
 g_stock_codes = {}
+g_business_data = []
+g_dividend_data = {}
 g_is_test = False
 if g_is_test:
     g_stock_head_codes = ['600']
@@ -186,6 +211,7 @@ def analyseData(stock_code,is_show = True):
     lrb_data = loadData(stock_code,'lrb')
     zcfzb_data = loadData(stock_code,'zcfzb')
     xjllb_data = loadData(stock_code,'xjllb')
+    dividend_data = g_dividend_data[stock_code]
 
     if not lrb_data or not xjllb_data or not zcfzb_data:
         print('loss ' + stock_code + ', unlisted')
@@ -810,6 +836,76 @@ def analyseData(stock_code,is_show = True):
     if is_show:
         print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
+
+    #分红
+    payment_days = ''
+    #dividend10 = ''
+    dividend_level = []
+    value_table['dividend_level'] = dividend_level
+
+    for index in range(len_of_year - 1,-1,-1):
+        indexOfSingle = index
+        index = indexes_for_cal_zcfzb[index]
+        yyyymmdd = zcfzb_data['report_date'][index].split('-')
+        yyyy = yyyymmdd[0]
+        for single_dividend in dividend_data:
+            if single_dividend['year'] == yyyy:
+                dividend_level.append(single_dividend)
+                if len(dividend_level) >= 5:
+                    break
+        if len(dividend_level) >= 5:
+            break
+
+    len_of_year = len(dividend_level)
+    for index in range(len_of_year - 1,-1,-1):#需要倒序
+        indexOfSingle = index
+        index = indexes_for_cal_zcfzb[index]
+        yyyymmdd = zcfzb_data['report_date'][index].split('-')
+        yyyy = yyyymmdd[0]
+        for single_dividend in dividend_data:
+            if single_dividend['year'] == yyyy:
+                payment_days = payment_days + single_dividend['payment_day'].ljust(15)
+    str_result = zhJust(u'类别      分红发放日    ') + payment_days
+
+    if is_show:
+        print('\n')
+        print("\033[0;37;42m{0}\033[0m".format(str_result))
+        print(zhJust(u'分红水平'))
+    
+    str_result = zhJust(u'          每10股分红（元）',29)
+
+    for index in range(len_of_year - 1,-1,-1):#需要倒序
+        indexOfSingle = index
+        index = indexes_for_cal_zcfzb[index]
+        yyyymmdd = zcfzb_data['report_date'][index].split('-')
+        yyyy = yyyymmdd[0]
+        for single_dividend in dividend_data:
+            if single_dividend['year'] == yyyy:
+                str_result = str_result + str(single_dividend['dividend']).ljust(15)
+                break
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+
+    str_result = zhJust(u'          分红率')
+
+    for index in range(len_of_year - 1,-1,-1):#需要倒序
+        indexOfSingle = index
+        index = indexes_for_cal_zcfzb[indexOfSingle]
+        yyyymmdd = zcfzb_data['report_date'][index].split('-')
+        yyyy = yyyymmdd[0]
+        for single_dividend in dividend_data:
+            if single_dividend['year'] == yyyy:
+                dividend = 0
+                if single_dividend['dividend'] != '--':
+                    dividend = float(single_dividend['dividend'])
+                payIn_capital = zcfzb_data['payIn_capital'][index]
+                index = indexes_for_cal_lrb[indexOfSingle]
+                net_profit_company = lrb_data['net_profit_company'][index]
+                dividend_level[len_of_year - indexOfSingle - 1]['dividend_rate'] = utils.cal_dividend_rate(dividend,payIn_capital,net_profit_company)
+                str_result = str_result + str(dividend_level[len_of_year - indexOfSingle - 1]['dividend_rate']).ljust(15)
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+    
     json_values = json.dumps(value_table)
     fw = open('base_data/value/' + stock_code + '.json', 'w')
     fw.write(json_values)
@@ -1045,8 +1141,27 @@ def cal_score(stock_code):
         else:
             tatal_score = tatal_score - 15
 
-        print(stock_code + ' score ' + str(tatal_score))
-        return tatal_score
+    sum_dividend = 0
+
+    for dividend_level in value_table['dividend_level']:
+        dividend = 0
+        if dividend_level['dividend'] != '--':
+            dividend = float(dividend_level['dividend'])
+        sum_dividend = sum_dividend + dividend
+    if len(value_table['dividend_level']) == 0:
+        average_dividend = 0
+    else:
+        average_dividend = sum_dividend / len(value_table['dividend_level'])
+    
+    if average_dividend == 0:
+        tatal_score = tatal_score + 0
+    elif average_dividend >= 30:
+        tatal_score = tatal_score + 50
+    elif average_dividend >= 20:
+        tatal_score = tatal_score + 20
+
+    print(stock_code + ' score ' + str(tatal_score))
+    return tatal_score
     
 def gethtml():
     content = web.urlopen('http://quotes.money.163.com/f10/gszl_600500.html#11a01').read()
@@ -1116,6 +1231,58 @@ def gethtml():
     # for tag in soup.find_all(re.compile("b")):
     #     print(tag.name)
 
+def getDividendData(pro,business_data = [{'ts_code':'600117.SH'}]):
+    #tushare is bad.
+    # It's better that go to 163 to grap some data. At less do not waiting.
+    dividend_dic = {}
+    if os.path.exists("base_data/dividend/dividend.json"):
+        fo = open("base_data/dividend/dividend.json", "r")
+        dividend_dic = json.load(fo)
+    for stock_dic in business_data:
+        stock_code = stock_dic['ts_code'][0:6]
+        while True:
+            try:
+                url = 'http://quotes.money.163.com/f10/fhpg_' + stock_code + '.html'
+                content = web.urlopen(url,timeout=5).read()
+                soup = bs4.BeautifulSoup(content,features="lxml")
+                inner_box = soup.body.contents[7].contents[9]
+                tbody = inner_box.contents[3]
+                dividend_dic[stock_code] = []
+                for index in range(len(tbody.contents)):
+                    if index < 3:
+                        continue
+                    if index > 12:
+                        break
+                    tr = tbody.contents[index]
+                    if type(tr) == bs4.element.Tag:
+                        if str(tr.contents[0].contents[0]) == u'暂无数据':
+                            break
+                        year = str(tr.contents[1].string)
+                        dividend = str(tr.contents[4].string)
+                        payment_day = str(tr.contents[6].string)
+                        #print('分红年度：' + tr.contents[1].string + ' 派息：' + tr.contents[4].string + ' 发放日：' + tr.contents[6].string)
+                        dividend_dic[stock_code].append({'year':year,'dividend':dividend,'payment_day':payment_day})
+                time.sleep(0.1)
+                print(stock_code + ' dividend has download ! ')
+                break
+            except Exception as e:
+                if str(e) =='HTTP Error 404: Not Found':
+                    print('has not ' + stock_code)
+                    break
+                if str(e) == 'HTTP Error 500: Internal Server Error':
+                    print('server error form 163. Code:' + stock_code)
+                    break
+                else:
+                    print(e)
+                    continue
+        #print(dividend_dic)
+        dividend_dic_json = json.dumps(dividend_dic)
+        fo = open("base_data/dividend/dividend.json", "w")
+        fo.write(dividend_dic_json)
+        fo.close()
+        print('done!')
+    return dividend_dic
+
 def deleteFile():
     for stock_head in g_stock_head_codes:
         for talbeName in g_table_names:
@@ -1133,23 +1300,27 @@ def deleteFile():
                     print('remove ' + talbeName + stock_code)
 
 def initGStockCodes():
+    global g_business_data,g_stock_codes
     business_file = open("base_data/business/business.json", "r")
-    business_data = json.load(business_file)
+    g_business_data = json.load(business_file)
     #g_stock_codes
-    for stock_dic in business_data:
+    for stock_dic in g_business_data:
         stock_code = stock_dic['ts_code'][0:6]
-        g_stock_codes[stock_code] = 1
+        g_stock_codes[stock_code] = stock_dic
     business_file.close()
 
 def main():
+    global g_dividend_data
     initGStockCodes()
-
+    pro = tushare_get.getPro()
+    #g_dividend_data = getDividendData(pro,g_business_data)
+    #g_dividend_data = getDividendData(pro)
     #deleteFile()
     #downloadData()
-    analyseAllData()
-    #analyseData(stock_code = '600519')
+    #analyseAllData()
+    #analyseData(stock_code = '600117')
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    #cal_score(stock_code = '600519')
+    cal_score(stock_code = '603288')
 
 if __name__ == '__main__':
     main()

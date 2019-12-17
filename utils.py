@@ -175,3 +175,7 @@ def cal_cash_reinvestment_rate(net_flow_from_op,paid_for_distribution,tatol_asse
       return 0
    #现金再投资比率 = 经营活动产生现金流量净额 - 现金股利 / 固定资产毛额 + 长期投资 + 其他资产 + 营运资金 = （经营活动产生现金流量净额 - 分配股利、利润或偿付利息所支付的现金） / （总资产 - 流动负债）
    return round(float(net_flow_from_op - paid_for_distribution) / (tatol_assets - total_current_liability) * 100,1)
+
+def cal_dividend_rate(dividend,payIn_capital,net_profit_company):
+   # = 分红总额 / 属总公司净利率  =  ( 分红金额 b * 总股本 zcb95 ) / 10  / (所属年度)归属于母公司所有者的净利润 lrb41
+   return round(float(dividend * payIn_capital) / net_profit_company / 10 * 100,1)

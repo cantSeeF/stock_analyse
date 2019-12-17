@@ -147,7 +147,7 @@ zcfzb_name_dict = {
     u'其他非流动负债':'other_non-current_liability',
     u'非流动负债合计':'total_noncurrent_liability',
     u'负债合计':'total_liability',
-    u'实收资本':'pay-in_capital',
+    u'实收资本':'payIn_capital',
     u'资本公积':'capital_reserve',
     u'减:库存股':'treasury_stock',
     u'专项储备':'special_reserves',

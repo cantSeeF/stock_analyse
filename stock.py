@@ -2,6 +2,8 @@
 import tushare as ts
 from config import local
 import json
+import os
+import time
 # import sys
 # reload(sys)
 # sys.setdefaultencoding('utf-8')
@@ -91,16 +93,7 @@ def downTxt(pro):
       foH.write((str(index)+'   '+ts_code_h+'  '+symbol_h+'   '+name_h+' '+ area_h+' '+industry_h+' '+market_h+'   '+list_date_h).encode('utf-8').strip())
       foH.write('\n')
    foH.close()
-def getDividendData(pro,stock_codes = []):
-   #, fields='ts_code,div_proc,stk_div,record_date,ex_date'
-   df = pro.dividend(ts_code='600519.SH',fields='ts_code,end_date,cash_div,ex_date')
 
-   for _,row in df.iterrows():
-      ex_date = row['ex_date']
-      if ex_date:
-         print(row)
-
-   #print(df)
 
 def getPro():
    ts.set_token(local.get_token())
@@ -110,7 +103,7 @@ def getPro():
 def main():
    pro = getPro()
    #getBusinessData(pro)
-   getDividendData(pro)
+   #getDividendData(pro)
    #downTxt(pro)
 
 if __name__ == '__main__':
