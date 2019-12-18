@@ -230,7 +230,9 @@ def analyseData(stock_code,is_show = True):
     lrb_data = loadData(stock_code,'lrb')
     zcfzb_data = loadData(stock_code,'zcfzb')
     xjllb_data = loadData(stock_code,'xjllb')
-    dividend_data = g_dividend_data[stock_code]
+    dividend_data = []
+    if g_dividend_data.has_key(stock_code):
+        dividend_data = g_dividend_data[stock_code]
 
     if not lrb_data or not xjllb_data or not zcfzb_data:
         print('loss ' + stock_code + ', unlisted')
@@ -1338,11 +1340,18 @@ def sortHp(node):
 
 def getTop():
     global g_business_data
+
+    local_time = time.localtime()
+    cur_year = int(time.strftime("%Y", local_time))
+
     th = TopKHeap(200)
     #count = 1
     for stock_dic in g_business_data:
         stock_code = stock_dic['ts_code'][0:6]
         if stock_code[0:3] == '688':
+            continue
+        list_year = int(stock_dic['list_date'][0:4])
+        if cur_year - list_year >= 1:
             continue
         score = cal_score(stock_code = stock_code)
         node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score)
@@ -1354,12 +1363,20 @@ def getTop():
     topHp = th.topk()
     topHp.sort(key=sortHp,reverse = True)
 
-    fo = open('best_long_term_shares.txt','w')
+    fo = open('best_long_term_shares_less1.txt','w')
 
     for node in topHp:
         fo.write(str(node) + '\n')
         #print(node)
     fo.close()
+
+def getAllCate():
+    all_cate = {}
+    for stock_dic in g_business_data:
+        cate = stock_dic['industry']
+        all_cate[cate] = 1
+    for key in all_cate:
+        print(key)
 
 def main():
     global g_dividend_data
@@ -1370,12 +1387,16 @@ def main():
     #deleteFile()
     #downloadData()
     #analyseAllData()
-    # downloadTable('003816','lrb')
-    # downloadTable('003816','zcfzb')
-    # downloadTable('003816','xjllb')
-    # analyseData(stock_code = '003816')
+    stock_code = '002972'
+    downloadTable(stock_code,'lrb')
+    downloadTable(stock_code,'zcfzb')
+    downloadTable(stock_code,'xjllb')
+    analyseData(stock_code = stock_code)
+    score = cal_score(stock_code = stock_code)
+    print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    getTop()
+    #getTop()
+    #getAllCate()
     
 
 if __name__ == '__main__':

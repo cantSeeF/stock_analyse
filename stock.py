@@ -100,11 +100,24 @@ def getPro():
    pro = ts.pro_api()
    return pro
 
+def hsgtTop10(pro):#十大成交股
+   date = '20191217'
+   df = pro.hsgt_top10(trade_date=date, market_type='1') #市场类型market_type（1：沪市 3：深市）,
+   print(df)
+
+   df = pro.hsgt_top10(trade_date=date, market_type='3') 
+   print(df)
+
+def topList(pro):#龙虎榜
+   df = pro.top_list(trade_date='20191217')
+   print(df)
+
 def main():
    pro = getPro()
    #getBusinessData(pro)
    #getDividendData(pro)
    #downTxt(pro)
+   topList(pro)
 
 if __name__ == '__main__':
     main()
