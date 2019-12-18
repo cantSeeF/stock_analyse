@@ -25,6 +25,22 @@ class Node:
         self.stock_name = stock_name
         self.score = score
 
+    def __str__(self):
+		return '%s  %s  %s' %(self.stock_code,self.stock_name,self.score)
+
+    def __lt__(self,other):
+        if isinstance(other,Node):
+            return self.score < other.score
+        # return self.score < other.score
+
+    def __gt__(self,other): 
+        if isinstance(other,Node):
+            return self.score > other.score
+
+    def __eq__(self,other): 
+        if isinstance(other,Node):
+            return self.score == other.score
+
 class TopKHeap(object):
     def __init__(self, k):
         self.k = k
@@ -940,9 +956,12 @@ def cal_score(stock_code):
     except Exception as e:
         print(stock_code + ' open wrong')
         print(e)
-        return
+        return 0
 
     value_table = json.load(csvfile)
+    if len(value_table['profitability']['return_on_equity']) < 5:
+        return 0
+    
     tatal_score = 0
     #股东权益报酬率(%) RoE
     sum_roe = 0
@@ -1231,13 +1250,15 @@ def gethtml():
     # for tag in soup.find_all(re.compile("b")):
     #     print(tag.name)
 
-def getDividendData(pro,business_data = [{'ts_code':'600117.SH'}]):
+def getDividendData(pro,business_data = []):
+    #business_data = [{'ts_code':'600117.SH'}]
     #tushare is bad.
     # It's better that go to 163 to grap some data. At less do not waiting.
     dividend_dic = {}
     if os.path.exists("base_data/dividend/dividend.json"):
         fo = open("base_data/dividend/dividend.json", "r")
         dividend_dic = json.load(fo)
+        fo.close()
     for stock_dic in business_data:
         stock_code = stock_dic['ts_code'][0:6]
         while True:
@@ -1276,11 +1297,11 @@ def getDividendData(pro,business_data = [{'ts_code':'600117.SH'}]):
                     print(e)
                     continue
         #print(dividend_dic)
-        dividend_dic_json = json.dumps(dividend_dic)
-        fo = open("base_data/dividend/dividend.json", "w")
-        fo.write(dividend_dic_json)
-        fo.close()
-        print('done!')
+    dividend_dic_json = json.dumps(dividend_dic)
+    fo = open("base_data/dividend/dividend.json", "w")
+    fo.write(dividend_dic_json)
+    fo.close()
+    print('done!')
     return dividend_dic
 
 def deleteFile():
@@ -1309,18 +1330,37 @@ def initGStockCodes():
         g_stock_codes[stock_code] = stock_dic
     business_file.close()
 
+def sortHp(node):
+    return node.score
+
 def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
     #g_dividend_data = getDividendData(pro,g_business_data)
-    #g_dividend_data = getDividendData(pro)
+    g_dividend_data = getDividendData(pro)
     #deleteFile()
     #downloadData()
     #analyseAllData()
     #analyseData(stock_code = '600117')
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    cal_score(stock_code = '603288')
+
+    th = TopKHeap(5)
+    count = 1
+    for stock_dic in g_business_data:
+        stock_code = stock_dic['ts_code'][0:6]
+        score = cal_score(stock_code = stock_code)
+        node = Node(stock_code,stock_dic['name'],score)
+        th.push(node)
+        count = count + 1
+        # if count > 100:
+        #     break
+    
+    topHp = th.topk()
+    topHp.sort(key=sortHp,reverse = True)
+    for node in topHp:
+        print(node)
+    
 
 if __name__ == '__main__':
     main()
