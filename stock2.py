@@ -119,33 +119,36 @@ def downloadThread(stock_head,talbeName):
         
         if not g_stock_codes.has_key(stock_code):
             continue
-        file_path = 'base_data/' + talbeName + stock_code + '.csv'
-        # print(file_path)
-        try:
-            if os.path.exists(file_path):
-                continue
-        except Exception as e:
-            print(e)
+        downloadTable(stock_code,talbeName)
+
+def downloadTable(stock_code,table_name):
+    file_path = 'base_data/' + table_name + stock_code + '.csv'
+    # print(file_path)
+    try:
+        if os.path.exists(file_path):
             return
-        url = 'http://quotes.money.163.com/service/' + talbeName + '_' + stock_code +'.html'
-        while True:
-            try:
-                content = web.urlopen(url,timeout=2).read()
-                #print(content)
-                a_utf_8 = content.decode('gb2312').encode('utf-8')
-                with open('base_data/' + talbeName + stock_code + '.csv','wb') as f:
-                    f.write(a_utf_8)
-                    f.close()
-                print(talbeName + stock_code)
-                time.sleep(0.5)
+    except Exception as e:
+        print(e)
+        return
+    url = 'http://quotes.money.163.com/service/' + table_name + '_' + stock_code +'.html'
+    while True:
+        try:
+            content = web.urlopen(url,timeout=2).read()
+            #print(content)
+            a_utf_8 = content.decode('gb2312').encode('utf-8')
+            with open('base_data/' + table_name + stock_code + '.csv','wb') as f:
+                f.write(a_utf_8)
+                f.close()
+            print(table_name + stock_code)
+            time.sleep(0.5)
+            break
+        except Exception as e:
+            if str(e) =='HTTP Error 404: Not Found':
+                print('has not ' + table_name + stock_code)
                 break
-            except Exception as e:
-                if str(e) =='HTTP Error 404: Not Found':
-                    print('has not ' + talbeName + stock_code)
-                    break
-                else:
-                    print(e)
-                    continue
+            else:
+                print(e)
+                continue
 
 def loadData(stock_code,table_name):
     table_name = table_name or 'lrb'
@@ -1179,7 +1182,7 @@ def cal_score(stock_code):
     elif average_dividend >= 20:
         tatal_score = tatal_score + 20
 
-    print(stock_code + ' score ' + str(tatal_score))
+    #print(stock_code + ' score ' + str(tatal_score))
     return tatal_score
     
 def gethtml():
@@ -1333,6 +1336,31 @@ def initGStockCodes():
 def sortHp(node):
     return node.score
 
+def getTop():
+    global g_business_data
+    th = TopKHeap(200)
+    #count = 1
+    for stock_dic in g_business_data:
+        stock_code = stock_dic['ts_code'][0:6]
+        if stock_code[0:3] == '688':
+            continue
+        score = cal_score(stock_code = stock_code)
+        node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score)
+        th.push(node)
+        #count = count + 1
+        # if count > 100:
+        #     break
+    
+    topHp = th.topk()
+    topHp.sort(key=sortHp,reverse = True)
+
+    fo = open('best_long_term_shares.txt','w')
+
+    for node in topHp:
+        fo.write(str(node) + '\n')
+        #print(node)
+    fo.close()
+
 def main():
     global g_dividend_data
     initGStockCodes()
@@ -1342,24 +1370,12 @@ def main():
     #deleteFile()
     #downloadData()
     #analyseAllData()
-    #analyseData(stock_code = '600117')
+    # downloadTable('003816','lrb')
+    # downloadTable('003816','zcfzb')
+    # downloadTable('003816','xjllb')
+    # analyseData(stock_code = '003816')
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-
-    th = TopKHeap(5)
-    count = 1
-    for stock_dic in g_business_data:
-        stock_code = stock_dic['ts_code'][0:6]
-        score = cal_score(stock_code = stock_code)
-        node = Node(stock_code,stock_dic['name'],score)
-        th.push(node)
-        count = count + 1
-        # if count > 100:
-        #     break
-    
-    topHp = th.topk()
-    topHp.sort(key=sortHp,reverse = True)
-    for node in topHp:
-        print(node)
+    getTop()
     
 
 if __name__ == '__main__':
