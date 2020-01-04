@@ -20,13 +20,14 @@ sys.setdefaultencoding('utf-8')
 import heapq
 
 class Node:
-    def __init__(self,stock_code,stock_name,score):
+    def __init__(self,stock_code,stock_name,score,remarks=''):
         self.stock_code = stock_code
         self.stock_name = stock_name
         self.score = score
+        self.remarks = remarks
 
     def __str__(self):
-		return '%s  %s  %s' %(self.stock_code,self.stock_name,self.score)
+		return '%s  %s  %s %s' %(self.stock_code,self.stock_name,self.score,self.remarks)
 
     def __lt__(self,other):
         if isinstance(other,Node):
@@ -241,6 +242,10 @@ def analyseData(stock_code,is_show = True):
     local_time = time.localtime()
     cur_year = int(time.strftime("%Y", local_time))
     #print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
+
+    report_mon = 12
+    report_day = 31
+
     max_count = 5
     indexes_for_cal_lrb = []
     for index in range(len(lrb_data['report_date'])):
@@ -251,7 +256,7 @@ def analyseData(stock_code,is_show = True):
         single_month = int(yyyymmdd[1]) 
         single_day = int(yyyymmdd[2])
 
-        if single_year < cur_year and single_month == 12 and single_day == 31 and len(indexes_for_cal_lrb) < max_count:
+        if single_year < cur_year and single_month == report_mon and single_day == report_day and len(indexes_for_cal_lrb) < max_count:
             indexes_for_cal_lrb.append(index)
 
     len_of_year = len(indexes_for_cal_lrb)
@@ -265,7 +270,7 @@ def analyseData(stock_code,is_show = True):
         single_month = int(yyyymmdd[1]) 
         single_day = int(yyyymmdd[2])
 
-        if single_year < cur_year and single_month == 12 and single_day == 31 and len(indexes_for_cal_zcfzb) < max_count:
+        if single_year < cur_year and single_month == report_mon and single_day == report_day and len(indexes_for_cal_zcfzb) < max_count:
             indexes_for_cal_zcfzb.append(index)
 
     indexes_for_cal_xjllb = []
@@ -277,7 +282,7 @@ def analyseData(stock_code,is_show = True):
         single_month = int(yyyymmdd[1]) 
         single_day = int(yyyymmdd[2])
 
-        if single_year < cur_year and single_month == 12 and single_day == 31 and len(indexes_for_cal_xjllb) < max_count:
+        if single_year < cur_year and single_month == report_mon and single_day == report_day and len(indexes_for_cal_xjllb) < max_count:
             indexes_for_cal_xjllb.append(index)
 
 
@@ -792,7 +797,7 @@ def analyseData(stock_code,is_show = True):
                     break
                 single_month = int(yyyymmdd[1]) 
                 single_day = int(yyyymmdd[2])
-                if single_month == 12 and single_day == 31:
+                if single_month == report_mon and single_day == report_day:
                     break
             if has_done:
                 break
@@ -947,8 +952,8 @@ def analyseAllData():
                 continue
             file_path = 'base_data/value/' + stock_code + '.json'
             #print(file_path)
-            #if not os.path.exists(file_path):
-            if True:
+            if not os.path.exists(file_path):
+            # if True:
                 print('analyse ' + stock_code)
                 analyseData(stock_code = stock_code,is_show=False)
             else:
@@ -1255,17 +1260,11 @@ def gethtml():
     # for tag in soup.find_all(re.compile("b")):
     #     print(tag.name)
 
-def getDividendData(pro,business_data = []):
-    #business_data = [{'ts_code':'600117.SH'}]
-    #tushare is bad.
-    # It's better that go to 163 to grap some data. At less do not waiting.
-    dividend_dic = {}
-    if os.path.exists("base_data/dividend/dividend.json"):
-        fo = open("base_data/dividend/dividend.json", "r")
-        dividend_dic = json.load(fo)
-        fo.close()
-    for stock_dic in business_data:
-        stock_code = stock_dic['ts_code'][0:6]
+def crawlDividendThread(dividend_dic,codes = []):
+    count = 0
+    for stock_code in codes:
+        stock_code = stock_code
+        count = count + 1
         while True:
             try:
                 url = 'http://quotes.money.163.com/f10/fhpg_' + stock_code + '.html'
@@ -1289,7 +1288,7 @@ def getDividendData(pro,business_data = []):
                         #print('分红年度：' + tr.contents[1].string + ' 派息：' + tr.contents[4].string + ' 发放日：' + tr.contents[6].string)
                         dividend_dic[stock_code].append({'year':year,'dividend':dividend,'payment_day':payment_day})
                 time.sleep(0.1)
-                print(stock_code + ' dividend has download ! ')
+                print(stock_code + ' dividend has download ! ' + str(count))
                 break
             except Exception as e:
                 if str(e) =='HTTP Error 404: Not Found':
@@ -1302,6 +1301,64 @@ def getDividendData(pro,business_data = []):
                     print(e)
                     continue
         #print(dividend_dic)
+    return
+
+def getDividendData(pro,business_data = []):
+    #business_data = [{'ts_code':'600117.SH'}]
+    #tushare is bad.
+    # It's better that go to 163 to grap some data. At less do not waiting.
+    '''
+    try:
+        thread_list = []
+        for stock_head in g_stock_head_codes:
+            for talbeName in g_table_names:
+                # thread.start_new_thread(downloadThread1, (str(talbeName),)) 
+                t1= threading.Thread(target=downloadThread,args=(str(stock_head),str(talbeName),))
+                thread_list.append(t1)
+
+        for t in thread_list:
+            # t.setDaemon(True)  # 设置为守护线程，不会因主线程结束而中断
+            t.start()
+            time.sleep(0.1)
+        for t in thread_list:
+            t.join()  # 子线程全部加入，主线程等所有子线程运行完毕
+        time.sleep(1)
+    except:
+        print "Error: unable to start thread"
+    '''
+
+    dividend_dic = {}
+    if os.path.exists("base_data/dividend/dividend.json"):
+        fo = open("base_data/dividend/dividend.json", "r")
+        dividend_dic = json.load(fo)
+        fo.close()
+
+    thread_list = []
+    stock_codes = []
+    counts = 0
+    aThreadCount = 300
+    for stock_dic in business_data:
+        stock_code = stock_dic['ts_code'][0:6]
+        stock_codes.append(stock_code)
+        counts = counts + 1
+        if counts >= aThreadCount:
+            t1= threading.Thread(target=crawlDividendThread,args=(dividend_dic,stock_codes[:],))
+            thread_list.append(t1)
+            stock_codes = []
+            counts = 0
+    if counts > 0:
+        t1= threading.Thread(target=crawlDividendThread,args=(dividend_dic,stock_codes[:],))
+        thread_list.append(t1)
+
+    for t in thread_list:
+        # 不需要加锁
+        # t.setDaemon(True)  # 设置为守护线程，不会因主线程结束而中断
+        t.start()
+        time.sleep(0.1)
+
+    for t in thread_list:
+        t.join()  # 子线程全部加入，主线程等所有子线程运行完毕
+
     dividend_dic_json = json.dumps(dividend_dic)
     fo = open("base_data/dividend/dividend.json", "w")
     fo.write(dividend_dic_json)
@@ -1343,7 +1400,7 @@ def getTop():
 
     local_time = time.localtime()
     cur_year = int(time.strftime("%Y", local_time))
-
+    cur_year = 2019
     th = TopKHeap(200)
     #count = 1
     for stock_dic in g_business_data:
@@ -1351,10 +1408,10 @@ def getTop():
         if stock_code[0:3] == '688':
             continue
         list_year = int(stock_dic['list_date'][0:4])
-        if cur_year - list_year >= 1:
+        if cur_year - list_year < 5:
             continue
         score = cal_score(stock_code = stock_code)
-        node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score)
+        node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
         th.push(node)
         #count = count + 1
         # if count > 100:
@@ -1363,7 +1420,7 @@ def getTop():
     topHp = th.topk()
     topHp.sort(key=sortHp,reverse = True)
 
-    fo = open('best_long_term_shares_less1.txt','w')
+    fo = open('best_long_term_shares_more5.txt','w')
 
     for node in topHp:
         fo.write(str(node) + '\n')
@@ -1382,20 +1439,20 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    #g_dividend_data = getDividendData(pro,g_business_data)
-    g_dividend_data = getDividendData(pro)
+    g_dividend_data = getDividendData(pro,g_business_data)
+    # g_dividend_data = getDividendData(pro)
     #deleteFile()
-    #downloadData()
-    #analyseAllData()
-    stock_code = '002972'
-    downloadTable(stock_code,'lrb')
-    downloadTable(stock_code,'zcfzb')
-    downloadTable(stock_code,'xjllb')
-    analyseData(stock_code = stock_code)
-    score = cal_score(stock_code = stock_code)
-    print('score: ' + str(score))
+    # downloadData()
+    # analyseAllData()
+    # stock_code = '600519'
+    # downloadTable(stock_code,'lrb')
+    # downloadTable(stock_code,'zcfzb')
+    # downloadTable(stock_code,'xjllb')
+    # analyseData(stock_code = stock_code)
+    # score = cal_score(stock_code = stock_code)
+    # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    #getTop()
+    # getTop()
     #getAllCate()
     
 

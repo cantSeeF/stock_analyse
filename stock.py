@@ -100,24 +100,37 @@ def getPro():
    pro = ts.pro_api()
    return pro
 
-def hsgtTop10(pro):#十大成交股
-   date = '20191217'
+def hsgtTop10(pro,date):#十大成交股
+   date = date or '20191217'
    df = pro.hsgt_top10(trade_date=date, market_type='1') #市场类型market_type（1：沪市 3：深市）,
    print(df)
 
    df = pro.hsgt_top10(trade_date=date, market_type='3') 
    print(df)
 
-def topList(pro):#龙虎榜
-   df = pro.top_list(trade_date='20191217')
+def topList(pro,date):#龙虎榜
+   df = pro.top_list(trade_date=date)
+   print(df)
+
+def blockTradeCode(pro,stock_code,begin,end):#大宗交易
+   #df = pro.block_trade(ts_code = stock_code,start_date = begin,end_date=end)
+   df = pro.block_trade(trade_date = '20191217')
    print(df)
 
 def main():
+   curDate = time.strftime("%Y%m%d", time.localtime()) 
    pro = getPro()
-   #getBusinessData(pro)
+   getBusinessData(pro)
    #getDividendData(pro)
    #downTxt(pro)
-   topList(pro)
+   #topList(pro,'20191219')
+   #hsgtTop10(pro,'20191211')
+   #hsgtTop10(pro,'20191212')
+   #blockTradeCode(pro,'300015','20191210',curDate)
+   x = "sfsdf"
+
+   print x
+   print 'asdsd'
 
 if __name__ == '__main__':
     main()
