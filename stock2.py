@@ -5,7 +5,7 @@ import csv
 import json
 import re
 from bs4 import BeautifulSoup
-import time
+import time,datetime
 from config import define
 import utils
 import os
@@ -76,25 +76,14 @@ if g_is_test:
 
 # mylock = thread.allocate_lock() 
 
-# def downloadThread1(talbeName):
-#     global g_stock_head_codes
-#     print(talbeName)
-#     print(g_stock_head_codes)
-
-#     for sd in range(0,100):
-#         os.path.exists('base_data/lrb000;l001.csv')
-#         print(talbeName)
-#         time.sleep(1)
-
-def downloadData():
+def downloadFinanceData():
     #判断是否有更新(最新季度？)，存在，再下载
     # 创建线程
     try:
         thread_list = []
         for stock_head in g_stock_head_codes:
             for talbeName in g_table_names:
-                # thread.start_new_thread(downloadThread1, (str(talbeName),)) 
-                t1= threading.Thread(target=downloadThread,args=(str(stock_head),str(talbeName),))
+                t1= threading.Thread(target=downloadFinanceThread,args=(str(stock_head),str(talbeName),))
                 thread_list.append(t1)
 
         for t in thread_list:
@@ -107,7 +96,67 @@ def downloadData():
     except:
         print "Error: unable to start thread"
 
-def downloadThread(stock_head,talbeName):
+def downloadDailyData(business_data = []):
+    thread_list = []
+    stock_codes = []
+    counts = 0
+    aThreadCount = 300
+    for stock_dic in business_data:
+        stock_code = stock_dic['ts_code']
+        stock_codes.append(stock_code)
+        counts = counts + 1
+        if counts >= aThreadCount:
+            t1= threading.Thread(target=downloadDailyDataThread,args=(stock_codes[:],))
+            thread_list.append(t1)
+            stock_codes = []
+            counts = 0
+    if counts > 0:
+        t1= threading.Thread(target=downloadDailyDataThread,args=(stock_codes[:],))
+        thread_list.append(t1)
+
+    for t in thread_list:
+        # 不需要加锁
+        # t.setDaemon(True)  # 设置为守护线程，不会因主线程结束而中断
+        t.start()
+        time.sleep(0.1)
+
+    for t in thread_list:
+        t.join()  # 子线程全部加入，主线程等所有子线程运行完毕
+
+def downloadDailyDataThread(codes):
+    count = 0
+    for stock_code in codes:
+        count = count + 1
+        cur_day = time.strftime('%Y%m%d', time.localtime())
+        start_time = (datetime.datetime.now() - datetime.timedelta(days=365)).strftime('%Y%m%d')
+        while True:
+            try:
+                if stock_code[6:8] == 'SZ':
+                    market_type = 1
+                else:
+                    market_type = 0
+
+                url_format = 'http://quotes.money.163.com/service/chddata.html?code=%d%s&start=%s&end=%s&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER'
+                url = url_format % (market_type, stock_code[0:6], start_time, cur_day)
+                content = web.urlopen(url,timeout=5).read()
+                a_utf_8 = content.decode('gb2312').encode('utf-8')
+                with open('base_data/daily/' + stock_code[0:6] + '.csv','wb') as f:
+                    f.write(a_utf_8)
+                    f.close()
+                print(stock_code)
+                time.sleep(0.5)
+                break
+            except Exception as e:
+                if str(e) =='HTTP Error 404: Not Found':
+                    print('has not ' + stock_code)
+                    break
+                else:
+                    print(e)
+                    continue
+        #print(dividend_dic)
+    return
+
+def downloadFinanceThread(stock_head,talbeName):
     global os
     for count in range(g_start_stock,g_end_stock):
         stock_code = ''
@@ -1307,25 +1356,6 @@ def getDividendData(pro,business_data = []):
     #business_data = [{'ts_code':'600117.SH'}]
     #tushare is bad.
     # It's better that go to 163 to grap some data. At less do not waiting.
-    '''
-    try:
-        thread_list = []
-        for stock_head in g_stock_head_codes:
-            for talbeName in g_table_names:
-                # thread.start_new_thread(downloadThread1, (str(talbeName),)) 
-                t1= threading.Thread(target=downloadThread,args=(str(stock_head),str(talbeName),))
-                thread_list.append(t1)
-
-        for t in thread_list:
-            # t.setDaemon(True)  # 设置为守护线程，不会因主线程结束而中断
-            t.start()
-            time.sleep(0.1)
-        for t in thread_list:
-            t.join()  # 子线程全部加入，主线程等所有子线程运行完毕
-        time.sleep(1)
-    except:
-        print "Error: unable to start thread"
-    '''
 
     dividend_dic = {}
     if os.path.exists("base_data/dividend/dividend.json"):
@@ -1439,10 +1469,11 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    g_dividend_data = getDividendData(pro,g_business_data)
+    downloadDailyData(g_business_data[0:5])
+    # g_dividend_data = getDividendData(pro,g_business_data)
     # g_dividend_data = getDividendData(pro)
     #deleteFile()
-    # downloadData()
+    # downloadFinanceData()
     # analyseAllData()
     # stock_code = '600519'
     # downloadTable(stock_code,'lrb')

@@ -30,11 +30,7 @@ for index,row in df.iterrows():
    if num > 2:
       break
 '''
-'''
-df = pro.daily(ts_code='000333.SZ', start_date='20190701', end_date='20191128')
-df.head(10)
-print(df)
-'''
+
 # for index,row in df.iterrows():
 #    print(row)
 
@@ -117,20 +113,27 @@ def blockTradeCode(pro,stock_code,begin,end):#大宗交易
    df = pro.block_trade(trade_date = '20191217')
    print(df)
 
+def northwordMoney(pro):
+   #获取单日全部持股
+
+   #获取单日交易所所有持股
+   df = pro.hk_hold(ts_code='000333.SZ',start_date='20190625',end_date='20190725', exchange='SH')
+   print(df)
+
+def getDaily(pro):
+   df = pro.daily(ts_code='000333.SZ', start_date='20200101', end_date='20200108')
+   print(df)
+
 def main():
    curDate = time.strftime("%Y%m%d", time.localtime()) 
    pro = getPro()
-   getBusinessData(pro)
+   getDaily(pro)
    #getDividendData(pro)
    #downTxt(pro)
    #topList(pro,'20191219')
    #hsgtTop10(pro,'20191211')
    #hsgtTop10(pro,'20191212')
    #blockTradeCode(pro,'300015','20191210',curDate)
-   x = "sfsdf"
-
-   print x
-   print 'asdsd'
 
 if __name__ == '__main__':
     main()
