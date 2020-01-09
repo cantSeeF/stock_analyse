@@ -21,26 +21,45 @@ import heapq
 
 class Node:
     def __init__(self,stock_code,stock_name,score,remarks=''):
-        self.stock_code = stock_code
-        self.stock_name = stock_name
-        self.score = score
-        self.remarks = remarks
+        self._stock_code = stock_code
+        self._stock_name = stock_name
+        self._score = score
+        self._remarks = remarks
+
+    @property
+    def stock_code(self):
+        return self._stock_code
+
+    @stock_code.setter
+    def stock_code(self,stock_code):
+        if isinstance(stock_code,str):
+            self._stock_code = int(stock_code)
+        elif isinstance(stock_code,int):
+            self._stock_code = stock_code
+
+    @stock_code.deleter
+    def stock_code(self):
+        del self._stock_code
+
+    @property
+    def score(self):
+        return self._score
 
     def __str__(self):
-		return '%s  %s  %s %s' %(self.stock_code,self.stock_name,self.score,self.remarks)
+		return '%s  %s  %s %s' %(self._stock_code,self._stock_name,self._score,self._remarks)
 
     def __lt__(self,other):
         if isinstance(other,Node):
-            return self.score < other.score
+            return self._score < other._score
         # return self.score < other.score
 
     def __gt__(self,other): 
         if isinstance(other,Node):
-            return self.score > other.score
+            return self._score > other._score
 
     def __eq__(self,other): 
         if isinstance(other,Node):
-            return self.score == other.score
+            return self._score == other._score
 
 class TopKHeap(object):
     def __init__(self, k):
@@ -1431,31 +1450,56 @@ def getTop():
     local_time = time.localtime()
     cur_year = int(time.strftime("%Y", local_time))
     cur_year = 2019
-    th = TopKHeap(200)
-    #count = 1
-    for stock_dic in g_business_data:
-        stock_code = stock_dic['ts_code'][0:6]
-        if stock_code[0:3] == '688':
-            continue
-        list_year = int(stock_dic['list_date'][0:4])
-        if cur_year - list_year < 5:
-            continue
-        score = cal_score(stock_code = stock_code)
-        node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
-        th.push(node)
-        #count = count + 1
-        # if count > 100:
-        #     break
     
-    topHp = th.topk()
-    topHp.sort(key=sortHp,reverse = True)
+    rule_names = ['more5','less5','more3','less3','less1']
+    tops = {}
 
-    fo = open('best_long_term_shares_more5.txt','w')
+    for rule_name in rule_names:
+        th = TopKHeap(200)
+        #count = 1
+        for stock_dic in g_business_data:
+            stock_code = stock_dic['ts_code'][0:6]
+            if stock_code[0:3] == '688':
+                continue
+            num = int(rule_name[-1])
+            list_year = int(stock_dic['list_date'][0:4])
+            if num == 0:
+                continue
+            if rule_name[0:4] == 'more':
+                if cur_year - list_year < num:
+                    continue
+            elif rule_name[0:4] == 'less':
+                if cur_year - list_year >= num:
+                    continue
+            else:
+                continue
+            
+            score = cal_score(stock_code = stock_code)
+            node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
+            th.push(node)
 
-    for node in topHp:
-        fo.write(str(node) + '\n')
-        #print(node)
-    fo.close()
+        tops[rule_name] = th
+        print(rule_name + ' has get top')
+    
+    for rule_name in rule_names:
+        th = tops[rule_name]
+        topHp = th.topk()
+        topHp.sort(key=sortHp,reverse = True)
+
+        fo = open('best_long_term_shares_' + rule_name + '.txt','w')
+
+        for node in topHp:
+            stock_code = node.stock_code
+            try:
+                csvfile = open('base_data/value/' + stock_code + '.json', 'r')
+            except Exception as e:
+                print(stock_code + ' open wrong')
+                print(e)
+            value_table = json.load(csvfile)
+            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
+            fo.write(str(node) + ' ' + str(cash_rate) + '\n')
+        print(rule_name + ' has done')
+        fo.close()
 
 def getAllCate():
     all_cate = {}
@@ -1469,7 +1513,7 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    downloadDailyData(g_business_data[0:5])
+    # downloadDailyData(g_business_data[0:5])
     # g_dividend_data = getDividendData(pro,g_business_data)
     # g_dividend_data = getDividendData(pro)
     #deleteFile()
@@ -1483,7 +1527,7 @@ def main():
     # score = cal_score(stock_code = stock_code)
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    # getTop()
+    getTop()
     #getAllCate()
     
 
