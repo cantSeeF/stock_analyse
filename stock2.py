@@ -10,7 +10,7 @@ from config import define
 import utils
 import os
 import threading
-
+import pandas as pd
 import bs4
 import stock as tushare_get
 import sys
@@ -82,7 +82,7 @@ class TopKHeap(object):
 g_start_stock = 0
 g_end_stock = 1000
 
-g_stock_head_codes = ['000','002','300','600','601','603']#600最多，可以加线程
+g_stock_head_codes = ['000','001','002','003','300','600','601','603']#600最多，可以加线程
 g_table_names = ['lrb','zcfzb','xjllb']
 g_stock_codes = {}
 g_business_data = []
@@ -144,10 +144,13 @@ def downloadDailyData(business_data = []):
 
 def downloadDailyDataThread(codes):
     count = 0
+    head_str = u'日期,股票代码,名称,收盘价,最高价,最低价,开盘价,前收盘,涨跌额,涨跌幅,换手率,成交量,成交金额'
+    head_str_e = ',stock_code,stock_name,tclose,hight,low,topen,lclose,chg,pchg,turnover,voturnover,vaturnover'
     for stock_code in codes:
         count = count + 1
-        cur_day = time.strftime('%Y%m%d', time.localtime())
-        start_time = (datetime.datetime.now() - datetime.timedelta(days=365)).strftime('%Y%m%d')
+        cur_day = (datetime.datetime.now() - datetime.timedelta(days=0)).strftime('%Y%m%d')
+        # start_time = (datetime.datetime.now() - datetime.timedelta(days=365)).strftime('%Y%m%d')
+        start_time = '20100101'
         while True:
             try:
                 if stock_code[6:8] == 'SZ':
@@ -155,13 +158,43 @@ def downloadDailyDataThread(codes):
                 else:
                     market_type = 0
 
+                file_path = 'base_data/daily/' + stock_code[0:6] + '.csv'
+                exist_file = False
+                df_exist = None
+                if os.path.exists(file_path):#change start_time
+                    exist_file = True
+                    try:
+                        df_exist = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+                        # print(df_exist.head(1))
+                        # print(df_exist.head(1).index)
+                        # print(df_exist.head(1).index[0])
+                        # print(df_exist.head(1).index.max())
+                        first_date = df_exist.head(1).index.max()
+                        first_time = datetime.date(first_date.year,first_date.month,first_date.day)
+                        start_time = (first_time + datetime.timedelta(days = 1)).strftime('%Y%m%d')
+                    except Exception as e:
+                        os.remove('base_data/daily/' + stock_code[0:6] + '.csv')
+                        exist_file = False
+                        # print(e)
+
                 url_format = 'http://quotes.money.163.com/service/chddata.html?code=%d%s&start=%s&end=%s&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER'
                 url = url_format % (market_type, stock_code[0:6], start_time, cur_day)
                 content = web.urlopen(url,timeout=5).read()
                 a_utf_8 = content.decode('gb2312').encode('utf-8')
-                with open('base_data/daily/' + stock_code[0:6] + '.csv','wb') as f:
+                a_utf_8 = a_utf_8.replace(head_str,head_str_e,1)
+                a_utf_8 = a_utf_8.replace('\'','')
+
+                with open('base_data/daily/' + stock_code[0:6] + '_temp.csv','wb') as f:
                     f.write(a_utf_8)
                     f.close()
+                if exist_file:
+                    df_cur = pd.read_csv('base_data/daily/' + stock_code[0:6] + '_temp.csv', parse_dates=True, index_col=0)
+                    data = df_cur.append(df_exist) 
+                    data.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
+                    os.remove('base_data/daily/' + stock_code[0:6] + '_temp.csv')
+                else:
+                    os.rename('./base_data/daily/' + stock_code[0:6] + '_temp.csv','./base_data/daily/' + stock_code[0:6] + '.csv')
+
                 print(stock_code)
                 time.sleep(0.5)
                 break
@@ -174,6 +207,14 @@ def downloadDailyDataThread(codes):
                     continue
         #print(dividend_dic)
     return
+
+def pandasTest(stock_code = '600006'):
+    tsla_df_load = pd.read_csv('base_data/daily/' + stock_code + '.csv', parse_dates=True, index_col=0)
+    # print('tsla_df_load.head():\n')
+    print(tsla_df_load['vaturnover'].head())
+    print(tsla_df_load[['stock_code','vaturnover','tclose']].head())
+    # print('tsla_df_load.head():\n', tsla_df_load._stat_axis.values.tolist())
+    # print(tsla_df_load.head())
 
 def downloadFinanceThread(stock_head,talbeName):
     global os
@@ -1333,6 +1374,9 @@ def crawlDividendThread(dividend_dic,codes = []):
     for stock_code in codes:
         stock_code = stock_code
         count = count + 1
+        if dividend_dic.has_key(stock_code):
+            print(stock_code + ' has got')
+            continue
         while True:
             try:
                 url = 'http://quotes.money.163.com/f10/fhpg_' + stock_code + '.html'
@@ -1509,14 +1553,23 @@ def getAllCate():
     for key in all_cate:
         print(key)
 
+def updateAll():
+    global g_dividend_data
+    pro = tushare_get.getPro()
+    tushare_get.getBusinessData(pro)
+    initGStockCodes()
+    downloadFinanceData()
+    g_dividend_data = getDividendData(pro,g_business_data)
+    analyseAllData()
+
 def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    # downloadDailyData(g_business_data[0:5])
+    downloadDailyData(g_business_data[0:3])
     # g_dividend_data = getDividendData(pro,g_business_data)
     # g_dividend_data = getDividendData(pro)
-    #deleteFile()
+    # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
     # stock_code = '600519'
@@ -1527,9 +1580,11 @@ def main():
     # score = cal_score(stock_code = stock_code)
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    getTop()
+    # getTop()
     #getAllCate()
+    # pandasTest('600017')
     
 
 if __name__ == '__main__':
     main()
+    # updateAll()
