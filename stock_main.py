@@ -12,7 +12,7 @@ import os
 import threading
 import pandas as pd
 import bs4
-import tushare as tushare_get
+import stock_ts as tushare_get
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -1488,6 +1488,8 @@ def initGStockCodes():
     g_business_data = json.load(business_file)
     #g_stock_codes
     for stock_dic in g_business_data:
+        if stock_dic['industry'] == 'industry':
+            continue
         stock_code = stock_dic['ts_code'][0:6]
         g_stock_codes[stock_code] = stock_dic
     business_file.close()
@@ -1552,6 +1554,65 @@ def getTop():
         print(rule_name + ' has done')
         fo.close()
 
+def getDaysBestGroup(begin = '20200110',end = '20200110'):
+    global g_business_data
+    group_dic = {}
+    # g_business_data = g_business_data[0:10]
+    all_count = len(g_business_data)
+    count = 0
+    for stock_dic in g_business_data:
+        stock_code = stock_dic['ts_code'][0:6]
+        count = count + 1
+        if stock_code[0:3] == '688':
+            continue
+
+        file_path = 'base_data/daily/' + stock_code + '.csv'
+        if not os.path.exists(file_path):
+            continue
+        try:
+            df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+        except Exception as e:
+            continue
+        # df.shape[0] get cow length
+        # df = df.head(1)
+        # print(df)
+        chg = df.iloc[0].at['chg']
+        lclose = df.iloc[0].at['lclose']
+        if chg == 'None' or lclose == 'None':
+            continue
+        rate = round( float(chg) / float(lclose) * 10000)
+        industry = stock_dic['industry']
+        if(industry == 'industry'):
+            continue
+        if group_dic.has_key(industry):
+            value = group_dic[industry]
+            value['rate'] = value['rate'] + rate
+            value['count'] = value['count'] + 1
+        else:
+            group_dic[industry] = {'rate':rate,'count':1}
+        
+        work_rate = round(count / all_count * 100)
+        print ' ' + str(count) + '\r',
+    
+    group_list = []
+    for key in group_dic:
+        group_dic[key]['average'] = round(group_dic[key]['rate'] / group_dic[key]['count']) / 100
+        group_dic[key]['industry'] = key
+        group_list.append(group_dic[key])
+
+
+    def sortGroup(elem):
+        return elem['average']
+    group_list.sort(key=sortGroup,reverse = True)
+    # print(group_dic)
+    fo = open('best_days_group.txt','w')
+    for dic in group_list:
+        fo.write(dic['industry'] + ' ' + str(dic['average']) + '\n')
+    fo.close()
+    print('\ndone')
+        
+
+
 def getAllCate():
     all_cate = {}
     for stock_dic in g_business_data:
@@ -1587,7 +1648,7 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    downloadAndUpdateDailyData(g_business_data)
+    # downloadAndUpdateDailyData(g_business_data)
     # downloadAndUpdateDailyData()
     # g_dividend_data = getDividendData(pro,g_business_data)
     # g_dividend_data = getDividendData(pro)
@@ -1605,6 +1666,7 @@ def main():
     # getTop()
     #getAllCate()
     # pandasTest('600017')
+    getDaysBestGroup()
     
 
 if __name__ == '__main__':

@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "tushare",
+            "name": "stock_ts",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/tushare.py",
+            "program": "${workspaceFolder}/stock_ts.py",
             "console": "integratedTerminal"
         },
         {
