@@ -5,17 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "stock",
+            "name": "tushare",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/stock.py",
+            "program": "${workspaceFolder}/tushare.py",
             "console": "integratedTerminal"
         },
         {
-            "name": "stock2",
+            "name": "stock_main",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/stock2.py",
+            "program": "${workspaceFolder}/stock_main.py",
             "console": "integratedTerminal"
         },
         {

@@ -12,7 +12,7 @@ import os
 import threading
 import pandas as pd
 import bs4
-import stock as tushare_get
+import tushare as tushare_get
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -115,22 +115,25 @@ def downloadFinanceData():
     except:
         print "Error: unable to start thread"
 
-def downloadDailyData(business_data = []):
+def downloadAndUpdateDailyData(business_data = [{'ts_code':'002752.SZ'}]):
     thread_list = []
     stock_codes = []
     counts = 0
-    aThreadCount = 300
+    aThreadCount = 200
+    # except_code = ['000001.SH','000002.SH']
     for stock_dic in business_data:
         stock_code = stock_dic['ts_code']
+        
         stock_codes.append(stock_code)
         counts = counts + 1
         if counts >= aThreadCount:
-            t1= threading.Thread(target=downloadDailyDataThread,args=(stock_codes[:],))
+            t1= threading.Thread(target=downloadAndUpdateDailyDataThread,args=(stock_codes[:],))
             thread_list.append(t1)
             stock_codes = []
             counts = 0
+            aThreadCount = aThreadCount + 10
     if counts > 0:
-        t1= threading.Thread(target=downloadDailyDataThread,args=(stock_codes[:],))
+        t1= threading.Thread(target=downloadAndUpdateDailyDataThread,args=(stock_codes[:],))
         thread_list.append(t1)
 
     for t in thread_list:
@@ -142,18 +145,20 @@ def downloadDailyData(business_data = []):
     for t in thread_list:
         t.join()  # 子线程全部加入，主线程等所有子线程运行完毕
 
-def downloadDailyDataThread(codes):
+def downloadAndUpdateDailyDataThread(codes):
     count = 0
     head_str = u'日期,股票代码,名称,收盘价,最高价,最低价,开盘价,前收盘,涨跌额,涨跌幅,换手率,成交量,成交金额'
-    head_str_e = ',stock_code,stock_name,tclose,hight,low,topen,lclose,chg,pchg,turnover,voturnover,vaturnover'
+    head_str_e = ',stock_code,stock_name,tclose,high,low,topen,lclose,chg,pchg,turnover,voturnover,vaturnover'
+    all_count = len(codes)
     for stock_code in codes:
         count = count + 1
         cur_day = (datetime.datetime.now() - datetime.timedelta(days=0)).strftime('%Y%m%d')
         # start_time = (datetime.datetime.now() - datetime.timedelta(days=365)).strftime('%Y%m%d')
-        start_time = '20100101'
+        start_time = '19900101'
         while True:
             try:
-                if stock_code[6:8] == 'SZ':
+                stock_type = stock_code[7:9]
+                if stock_code[7:9] == 'SZ':
                     market_type = 1
                 else:
                     market_type = 0
@@ -162,6 +167,7 @@ def downloadDailyDataThread(codes):
                 exist_file = False
                 df_exist = None
                 if os.path.exists(file_path):#change start_time
+                    # break
                     exist_file = True
                     try:
                         df_exist = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
@@ -180,22 +186,22 @@ def downloadDailyDataThread(codes):
                 url_format = 'http://quotes.money.163.com/service/chddata.html?code=%d%s&start=%s&end=%s&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER'
                 url = url_format % (market_type, stock_code[0:6], start_time, cur_day)
                 content = web.urlopen(url,timeout=5).read()
-                a_utf_8 = content.decode('gb2312').encode('utf-8')
+                a_utf_8 = content.decode('gbk').encode('utf-8')
                 a_utf_8 = a_utf_8.replace(head_str,head_str_e,1)
                 a_utf_8 = a_utf_8.replace('\'','')
 
                 with open('base_data/daily/' + stock_code[0:6] + '_temp.csv','wb') as f:
                     f.write(a_utf_8)
                     f.close()
+                df_cur = pd.read_csv('base_data/daily/' + stock_code[0:6] + '_temp.csv', parse_dates=True, index_col=0)
+                df_cur.drop(['stock_code','stock_name'],axis = 1,inplace=True)
                 if exist_file:
-                    df_cur = pd.read_csv('base_data/daily/' + stock_code[0:6] + '_temp.csv', parse_dates=True, index_col=0)
-                    data = df_cur.append(df_exist) 
-                    data.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
-                    os.remove('base_data/daily/' + stock_code[0:6] + '_temp.csv')
-                else:
-                    os.rename('./base_data/daily/' + stock_code[0:6] + '_temp.csv','./base_data/daily/' + stock_code[0:6] + '.csv')
+                    df_cur = df_cur.append(df_exist) 
+                    # os.rename('name1','name2')
+                df_cur.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
+                os.remove('base_data/daily/' + stock_code[0:6] + '_temp.csv')
 
-                print(stock_code)
+                print(stock_code + ' daily ' + str(count) + '/' + str(all_count))
                 time.sleep(0.5)
                 break
             except Exception as e:
@@ -204,6 +210,7 @@ def downloadDailyDataThread(codes):
                     break
                 else:
                     print(e)
+                    print('wrong ' + stock_code)
                     continue
         #print(dividend_dic)
     return
@@ -1554,19 +1561,34 @@ def getAllCate():
         print(key)
 
 def updateAll():
+    def mkdir(path):
+        folder = os.path.exists(path)
+        if not folder:                   #判断是否存在文件夹如果不存在则创建为文件夹
+            os.makedirs(path)            #makedirs 创建文件时如果路径不存在会创建这个路径
+            print (path + " create")
+        else:
+            print (path + " is exist")
+		
+    mkdir('base_data\\business')
+    mkdir('base_data\\daily')
+    mkdir('base_data\\dividend')
+    mkdir('base_data\\value')
+    
     global g_dividend_data
     pro = tushare_get.getPro()
     tushare_get.getBusinessData(pro)
     initGStockCodes()
     downloadFinanceData()
     g_dividend_data = getDividendData(pro,g_business_data)
+    downloadAndUpdateDailyData(g_business_data)# Sometimes,just update high-score stock
     analyseAllData()
 
 def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    downloadDailyData(g_business_data[0:3])
+    downloadAndUpdateDailyData(g_business_data)
+    # downloadAndUpdateDailyData()
     # g_dividend_data = getDividendData(pro,g_business_data)
     # g_dividend_data = getDividendData(pro)
     # deleteFile()
