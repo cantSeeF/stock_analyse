@@ -131,7 +131,7 @@ def downloadAndUpdateDailyData(business_data = [{'ts_code':'002752.SZ'}]):
             thread_list.append(t1)
             stock_codes = []
             counts = 0
-            aThreadCount = aThreadCount + 10
+            # aThreadCount = aThreadCount + 10
     if counts > 0:
         t1= threading.Thread(target=downloadAndUpdateDailyDataThread,args=(stock_codes[:],))
         thread_list.append(t1)
@@ -1556,9 +1556,12 @@ def getTop():
 
 def getDaysBestGroup(begin = '20200110',end = '20200110'):
     global g_business_data
-    group_dic = {}
-    # g_business_data = g_business_data[0:10]
+    days_group = []
+    # g_business_data = g_business_data[0:100]
     all_count = len(g_business_data)
+    days_count = 10
+    for num in range(days_count):
+        days_group.append({})
     count = 0
     for stock_dic in g_business_data:
         stock_code = stock_dic['ts_code'][0:6]
@@ -1576,41 +1579,82 @@ def getDaysBestGroup(begin = '20200110',end = '20200110'):
         # df.shape[0] get cow length
         # df = df.head(1)
         # print(df)
-        chg = df.iloc[0].at['chg']
-        lclose = df.iloc[0].at['lclose']
-        if chg == 'None' or lclose == 'None':
-            continue
-        rate = round( float(chg) / float(lclose) * 10000)
         industry = stock_dic['industry']
         if(industry == 'industry'):
             continue
-        if group_dic.has_key(industry):
-            value = group_dic[industry]
-            value['rate'] = value['rate'] + rate
-            value['count'] = value['count'] + 1
-        else:
-            group_dic[industry] = {'rate':rate,'count':1}
+        for num in range(days_count):
+            if df.shape[0] <= num:
+                break
+            timestamp = df.iloc[num].name
+            dateStr = str(timestamp.year) + '-' + str(timestamp.month) + '-' + str(timestamp.day)
+            chg = df.iloc[num].at['chg']
+            lclose = df.iloc[num].at['lclose']
+
+            if chg == 'None' or lclose == 'None':
+                continue
+            rate = round( float(chg) / float(lclose) * 10000)
+            
+            group_dic = days_group[num]
+            if group_dic.has_key(industry):
+                value = group_dic[industry]
+                value['rate'] = value['rate'] + rate
+                value['count'] = value['count'] + 1
+            else:
+                group_dic[industry] = {'rate':rate,'count':1,'date':dateStr}
         
-        work_rate = round(count / all_count * 100)
-        print ' ' + str(count) + '\r',
+        work_rate = round(float(count) / all_count * 1000)
+        print ' ' + str(count) + ' ' + str(work_rate / 10) + '%\r',
     
-    group_list = []
-    for key in group_dic:
-        group_dic[key]['average'] = round(group_dic[key]['rate'] / group_dic[key]['count']) / 100
-        group_dic[key]['industry'] = key
-        group_list.append(group_dic[key])
-
-
     def sortGroup(elem):
         return elem['average']
-    group_list.sort(key=sortGroup,reverse = True)
-    # print(group_dic)
-    fo = open('best_days_group.txt','w')
-    for dic in group_list:
-        fo.write(dic['industry'] + ' ' + str(dic['average']) + '\n')
-    fo.close()
+    for num in range(days_count):
+        group_dic = days_group[num]
+        group_list = []
+        for key in group_dic:
+            group_dic[key]['average'] = round(group_dic[key]['rate'] / group_dic[key]['count']) / 100
+            group_dic[key]['industry'] = key
+            group_list.append(group_dic[key])
+
+        group_list.sort(key=sortGroup,reverse = True)
+        # print(group_dic)
+        fo = open('best_days_group' + group_dic[key]['date'] + '.txt','w')
+        for dic in group_list:
+            fo.write(dic['industry'] + ' ' + str(dic['average']) + '\n')
+        fo.close()
     print('\ndone')
         
+def getGroupAllStock(industry):
+    findStr = []
+    all_count = len(g_business_data)
+    count = 0
+    for stock_dic in g_business_data:
+        count = count + 1
+        stock_code = stock_dic['ts_code'][0:6]
+        if stock_code[0:3] == '688':
+            continue
+        file_path = 'base_data/daily/' + stock_code + '.csv'
+        if not os.path.exists(file_path):
+            continue
+        try:
+            df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+        except Exception as e:
+            continue
+        # dateStr = str(timestamp.year) + '-' + str(timestamp.month) + '-' + str(timestamp.day)
+        chg = df.iloc[0].at['chg']
+        lclose = df.iloc[0].at['lclose']
+
+        if chg == 'None' or lclose == 'None':
+            continue
+        rate = round( float(chg) / float(lclose) * 10000) / 100
+        findStr.append(stock_dic['ts_code'] + ' ' + stock_dic['name'] + ' ' + str(rate) + '%\n')
+
+        work_rate = round(float(count) / all_count * 1000)
+        print ' ' + str(count) + ' ' + str(work_rate / 10) + '%\r',
+
+    fo = open(industry + '.txt','w')
+    for detail in findStr:
+        fo.write(detail)
+    fo.close()
 
 
 def getAllCate():
@@ -1666,7 +1710,8 @@ def main():
     # getTop()
     #getAllCate()
     # pandasTest('600017')
-    getDaysBestGroup()
+    # getDaysBestGroup()
+    getGroupAllStock(u'种植业')
     
 
 if __name__ == '__main__':
