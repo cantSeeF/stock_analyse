@@ -14,6 +14,7 @@ import pandas as pd
 import bs4
 import stock_ts as tushare_get
 import sys
+import talib
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -1617,7 +1618,7 @@ def getDaysBestGroup(begin = '20200110',end = '20200110'):
 
         group_list.sort(key=sortGroup,reverse = True)
         # print(group_dic)
-        fo = open('best_days_group' + group_dic[key]['date'] + '.txt','w')
+        fo = open('product/best_days_group' + group_dic[key]['date'] + '.txt','w')
         for dic in group_list:
             fo.write(dic['industry'] + ' ' + str(dic['average']) + '\n')
         fo.close()
@@ -1631,6 +1632,8 @@ def getGroupAllStock(industry):
         count = count + 1
         stock_code = stock_dic['ts_code'][0:6]
         if stock_code[0:3] == '688':
+            continue
+        if stock_dic['industry'] != industry:
             continue
         file_path = 'base_data/daily/' + stock_code + '.csv'
         if not os.path.exists(file_path):
@@ -1646,16 +1649,37 @@ def getGroupAllStock(industry):
         if chg == 'None' or lclose == 'None':
             continue
         rate = round( float(chg) / float(lclose) * 10000) / 100
-        findStr.append(stock_dic['ts_code'] + ' ' + stock_dic['name'] + ' ' + str(rate) + '%\n')
+        score = cal_score(stock_code = stock_code)
+        findStr.append({'code':stock_dic['ts_code'],'name':stock_dic['name'],'rate':rate,'score':score})
 
         work_rate = round(float(count) / all_count * 1000)
         print ' ' + str(count) + ' ' + str(work_rate / 10) + '%\r',
 
-    fo = open(industry + '.txt','w')
+    findStr.sort(key = lambda elem: elem['score'], reverse = True)
+    fo = open('product/' + industry + '.txt','w')
     for detail in findStr:
-        fo.write(detail)
+        string = detail['code'] + ' ' + detail['name'] + ' ' + str(detail['rate']) + '% ' + str(detail['score']) + '\n'
+        fo.write(string)
     fo.close()
 
+def getMACD(stock_code = '300803'):
+    file_path = 'base_data/daily/' + stock_code + '.csv'
+    if not os.path.exists(file_path):
+        return
+    try:
+        df = pd.read_csv('base_data/daily/' + stock_code + '.csv', parse_dates=True, index_col=0)
+    except Exception as e:
+        return
+    df = df.iloc[::-1]
+    dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
+    # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
+    print('dif')
+    print(dif)
+    print('dea')
+    print(dea)
+    print('bar')
+    print(bar)
+    
 
 def getAllCate():
     all_cate = {}
@@ -1711,7 +1735,8 @@ def main():
     #getAllCate()
     # pandasTest('600017')
     # getDaysBestGroup()
-    getGroupAllStock(u'种植业')
+    # getGroupAllStock(u'商品城')
+    getMACD()
     
 
 if __name__ == '__main__':
