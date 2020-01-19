@@ -124,10 +124,18 @@ def getDaily(pro):
    df = pro.daily(ts_code='000333.SZ', start_date='20200101', end_date='20200108')
    print(df)
 
+def getAdjFactor(pro):
+   #复权因子
+   df = pro.adj_factor(ts_code='000333.SZ', trade_date='')
+   print(df[1300:1400])
+
 def main():
    curDate = time.strftime("%Y%m%d", time.localtime()) 
    pro = getPro()
-   getDaily(pro)
+   df = pro.dividend(ts_code='603583.SH')
+   print(df)
+   # getAdjFactor(pro)
+   # getDaily(pro)
    #getDividendData(pro)
    #downTxt(pro)
    #topList(pro,'20191219')

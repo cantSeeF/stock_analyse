@@ -1662,23 +1662,54 @@ def getGroupAllStock(industry):
         fo.write(string)
     fo.close()
 
-def getMACD(stock_code = '300803'):
+def get_EMA(df,N):
+    for i in range(len(df)):
+        if i==0:
+            df.ix[i,'ema']=df.ix[i,'tclose']
+#            df.ix[i,'ema']=0
+        if i>0:
+            df.ix[i,'ema']=(2*df.ix[i,'tclose']+(N-1)*df.ix[i-1,'ema'])/(N+1)
+    ema=list(df['ema'])
+    return ema
+ 
+def get_MACD(df,short=12,long=26,M=9):
+    a=get_EMA(df,short)
+    b=get_EMA(df,long)
+    diff = pd.Series(a)-pd.Series(b)
+    for i in range(len(df)):
+        df.ix[i,'diff'] = diff[i]
+    # print(df['diff'])
+    for i in range(len(df)):
+        if i==0:
+            df.ix[i,'dea']=df.ix[i,'diff']
+        if i>0:
+            df.ix[i,'dea']=((M-1)*df.ix[i-1,'dea']+2*df.ix[i,'diff'])/(M+1)
+    df['macd']=2*(df['diff']-df['dea'])
+    return df
+
+def getStockDataFrame(stock_code):
     file_path = 'base_data/daily/' + stock_code + '.csv'
-    if not os.path.exists(file_path):
-        return
-    try:
+    df = None
+    if os.path.exists(file_path):
         df = pd.read_csv('base_data/daily/' + stock_code + '.csv', parse_dates=True, index_col=0)
-    except Exception as e:
-        return
+    return df
+
+def getDayMACD(stock_code = '300803'):
+    df = getStockDataFrame(stock_code)
     df = df.iloc[::-1]
-    dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
-    # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
-    print('dif')
-    print(dif)
-    print('dea')
-    print(dea)
-    print('bar')
-    print(bar)
+    df = get_MACD(df)
+    # dif,dea,bar = talib.MACD(df.tclose.values)
+    # # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
+    print(df[['diff','dea','macd']])
+
+def getMonthMACD(stock_code = '000333'):
+    df = getStockDataFrame(stock_code)
+    # df = df.iloc[::-1]
+    df_period = df.to_period('M')
+    print(df_period.head())
+    # print(df['2019-11'])
+    # print(df['2016':'2017'].head(2))
+    # df = get_MACD(df)
     
 
 def getAllCate():
@@ -1736,7 +1767,7 @@ def main():
     # pandasTest('600017')
     # getDaysBestGroup()
     # getGroupAllStock(u'商品城')
-    getMACD()
+    getMonthMACD()
     
 
 if __name__ == '__main__':
