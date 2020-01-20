@@ -129,11 +129,20 @@ def getAdjFactor(pro):
    df = pro.adj_factor(ts_code='000333.SZ', trade_date='')
    print(df[1300:1400])
 
+def getDividendFromTSData(pro,business_data):
+   count = 0
+   for stock_dic in business_data:
+      count = count + 1
+      stock_code = stock_dic['ts_code']
+      df = pro.dividend(ts_code=stock_code)
+      print(df)
+      print('\n' + str(count) + '\n')
+      time.sleep(0.7)#抱歉，您每分钟最多访问该接口100次，权限的具体详情访问：https://tushare.pro/document/1?doc_id=108
+
+
 def main():
    curDate = time.strftime("%Y%m%d", time.localtime()) 
    pro = getPro()
-   df = pro.dividend(ts_code='603583.SH')
-   print(df)
    # getAdjFactor(pro)
    # getDaily(pro)
    #getDividendData(pro)

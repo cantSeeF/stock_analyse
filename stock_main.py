@@ -13,8 +13,10 @@ import threading
 import pandas as pd
 import bs4
 import stock_ts as tushare_get
+import tushare as ts
 import sys
-import talib
+# import talib
+import random
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -1377,7 +1379,7 @@ def gethtml():
     # for tag in soup.find_all(re.compile("b")):
     #     print(tag.name)
 
-def crawlDividendThread(dividend_dic,codes = []):
+def crawlDividendFrom163Thread(dividend_dic,codes = []):
     count = 0
     for stock_code in codes:
         stock_code = stock_code
@@ -1423,8 +1425,55 @@ def crawlDividendThread(dividend_dic,codes = []):
         #print(dividend_dic)
     return
 
+def crawlDividendFromSinaThread(dividend_dic,codes = []):
+    #存在封ip的风险，暂时只下载高分的股票
+    count = 0
+    for stock_code in codes:
+        stock_code = stock_code
+        count = count + 1
+        if dividend_dic.has_key(stock_code):
+            print(stock_code + ' has got')
+            continue
+        while True:
+            try:
+                url = 'http://vip.stock.finance.sina.com.cn/corp/go.php/vISSUE_ShareBonus/stockid/' + stock_code + '.phtml'
+                content = web.urlopen(url,timeout=5).read()
+                soup = bs4.BeautifulSoup(content,features="lxml")
+                # inner_box = soup.body.contents[7].contents[9]
+                # tbody = inner_box.contents[3]
+                # dividend_dic[stock_code] = []
+                # for index in range(len(tbody.contents)):
+                #     if index < 3:
+                #         continue
+                #     if index > 12:
+                #         break
+                #     tr = tbody.contents[index]
+                #     if type(tr) == bs4.element.Tag:
+                #         if str(tr.contents[0].contents[0]) == u'暂无数据':
+                #             break
+                #         year = str(tr.contents[1].string)
+                #         dividend = str(tr.contents[4].string)
+                #         payment_day = str(tr.contents[6].string)
+                #         #print('分红年度：' + tr.contents[1].string + ' 派息：' + tr.contents[4].string + ' 发放日：' + tr.contents[6].string)
+                #         dividend_dic[stock_code].append({'year':year,'dividend':dividend,'payment_day':payment_day})
+                time.sleep(random.randint(0,5)) 
+                print(stock_code + ' dividend has download ! ' + str(count))
+                break
+            except Exception as e:
+                if str(e) =='HTTP Error 404: Not Found':
+                    print('has not ' + stock_code)
+                    break
+                if str(e) == 'HTTP Error 500: Internal Server Error':
+                    print('server error form 163. Code:' + stock_code)
+                    break
+                else:
+                    print(e)
+                    continue
+        #print(dividend_dic)
+    return
+
 def getDividendData(pro,business_data = []):
-    #business_data = [{'ts_code':'600117.SH'}]
+    # business_data = [{'ts_code':'600117.SH'}]
     #tushare is bad.
     # It's better that go to 163 to grap some data. At less do not waiting.
 
@@ -1443,12 +1492,12 @@ def getDividendData(pro,business_data = []):
         stock_codes.append(stock_code)
         counts = counts + 1
         if counts >= aThreadCount:
-            t1= threading.Thread(target=crawlDividendThread,args=(dividend_dic,stock_codes[:],))
+            t1= threading.Thread(target=crawlDividendFrom163Thread,args=(dividend_dic,stock_codes[:],))
             thread_list.append(t1)
             stock_codes = []
             counts = 0
     if counts > 0:
-        t1= threading.Thread(target=crawlDividendThread,args=(dividend_dic,stock_codes[:],))
+        t1= threading.Thread(target=crawlDividendFrom163Thread,args=(dividend_dic,stock_codes[:],))
         thread_list.append(t1)
 
     for t in thread_list:
@@ -1466,6 +1515,50 @@ def getDividendData(pro,business_data = []):
     fo.close()
     print('done!')
     return dividend_dic
+
+def getAllotmentData(pro,business_data = []):
+    # business_data = [{'ts_code':'600117.SH'}]
+    #tushare is bad.
+    # It's better that go to 163 to grap some data. At less do not waiting.
+
+    allotment_dic = {}
+    if os.path.exists("base_data/dividend/allotment.json"):
+        fo = open("base_data/dividend/allotment.json", "r")
+        allotment_dic = json.load(fo)
+        fo.close()
+
+    thread_list = []
+    stock_codes = []
+    counts = 0
+    aThreadCount = 300
+    for stock_dic in business_data:
+        stock_code = stock_dic['ts_code'][0:6]
+        stock_codes.append(stock_code)
+        counts = counts + 1
+        # if counts >= aThreadCount:
+        #     t1= threading.Thread(target=crawlDividendFromSinaThread,args=(allotment_dic,stock_codes[:],))
+        #     thread_list.append(t1)
+        #     stock_codes = []
+        #     counts = 0
+    if counts > 0:
+        t1= threading.Thread(target=crawlDividendFromSinaThread,args=(allotment_dic,stock_codes[:],))
+        thread_list.append(t1)
+
+    for t in thread_list:
+        # 不需要加锁
+        # t.setDaemon(True)  # 设置为守护线程，不会因主线程结束而中断
+        t.start()
+        time.sleep(0.1)
+
+    for t in thread_list:
+        t.join()  # 子线程全部加入，主线程等所有子线程运行完毕
+
+    allotment_dic_json = json.dumps(allotment_dic)
+    fo = open("base_data/dividend/allotment.json", "w")
+    fo.write(allotment_dic_json)
+    fo.close()
+    print('done!')
+    return allotment_dic
 
 def deleteFile():
     for stock_head in g_stock_head_codes:
@@ -1498,21 +1591,21 @@ def initGStockCodes():
 def sortHp(node):
     return node.score
 
-def getTop():
+def getTop(is_save = True,rule_names = ['more5','less5','more3','less3','less1'],number = 100):
     global g_business_data
 
     local_time = time.localtime()
     cur_year = int(time.strftime("%Y", local_time))
     cur_year = 2019
     
-    rule_names = ['more5','less5','more3','less3','less1']
+    # rule_names = ['more5','less5','more3','less3','less1']
     tops = {}
 
     for rule_name in rule_names:
-        th = TopKHeap(200)
+        th = TopKHeap(number)
         #count = 1
         for stock_dic in g_business_data:
-            stock_code = stock_dic['ts_code'][0:6]
+            stock_code = stock_dic['ts_code']
             if stock_code[0:3] == '688':
                 continue
             num = int(rule_name[-1])
@@ -1528,32 +1621,34 @@ def getTop():
             else:
                 continue
             
-            score = cal_score(stock_code = stock_code)
+            score = cal_score(stock_code = stock_code[0:6])
             node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
             th.push(node)
 
         tops[rule_name] = th
         print(rule_name + ' has get top')
-    
+    topHps = {}
     for rule_name in rule_names:
         th = tops[rule_name]
         topHp = th.topk()
         topHp.sort(key=sortHp,reverse = True)
+        topHps[rule_name] = topHp
+        if is_save:
+            fo = open('product/best_long_term_shares_' + rule_name + '.txt','w')
 
-        fo = open('best_long_term_shares_' + rule_name + '.txt','w')
-
-        for node in topHp:
-            stock_code = node.stock_code
-            try:
-                csvfile = open('base_data/value/' + stock_code + '.json', 'r')
-            except Exception as e:
-                print(stock_code + ' open wrong')
-                print(e)
-            value_table = json.load(csvfile)
-            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
-            fo.write(str(node) + ' ' + str(cash_rate) + '\n')
-        print(rule_name + ' has done')
-        fo.close()
+            for node in topHp:
+                stock_code = node.stock_code
+                try:
+                    csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+                except Exception as e:
+                    print(stock_code + ' open wrong')
+                    print(e)
+                value_table = json.load(csvfile)
+                cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
+                fo.write(str(node) + ' ' + str(cash_rate) + '\n')
+            print(rule_name + ' has done')
+            fo.close()
+    return topHps
 
 def getDaysBestGroup(begin = '20200110',end = '20200110'):
     global g_business_data
@@ -1665,10 +1760,10 @@ def getGroupAllStock(industry):
 def get_EMA(df,N):
     for i in range(len(df)):
         if i==0:
-            df.ix[i,'ema']=df.ix[i,'tclose']
+            df.ix[i,'ema']=df.ix[i,'close']
 #            df.ix[i,'ema']=0
         if i>0:
-            df.ix[i,'ema']=(2*df.ix[i,'tclose']+(N-1)*df.ix[i-1,'ema'])/(N+1)
+            df.ix[i,'ema']=(2*df.ix[i,'close']+(N-1)*df.ix[i-1,'ema'])/(N+1)
     ema=list(df['ema'])
     return ema
  
@@ -1700,7 +1795,7 @@ def getDayMACD(stock_code = '300803'):
     df = get_MACD(df)
     # dif,dea,bar = talib.MACD(df.tclose.values)
     # # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
-    print(df[['diff','dea','macd']])
+    return df[['diff','dea','macd']]
 
 def getMonthMACD(stock_code = '000333'):
     df = getStockDataFrame(stock_code)
@@ -1720,6 +1815,84 @@ def getAllCate():
     for key in all_cate:
         print(key)
 
+def getQFQTSData(stock='000333.SZ'):
+    #qfq = 前复权
+    count = 0
+    max_count = 20000
+    cur_day = time.strftime("%Y%m%d", time.localtime()) 
+    stock_code = stock
+    df = ts.pro_bar(ts_code=stock_code,adj='qfq',freq='M', start_date='19900101', end_date=cur_day)
+    #   print(df)
+        # time.sleep(0.1)
+    return df
+
+def findStockBySu():
+    # get top
+    # get stock qfq data
+    # get stock macd
+    # get stocks which month data show status-A
+    # show that stocks
+    tops = getTop(is_save = False,rule_names = ['more5','less5'],number=150)
+    # tops = {'abc':[Node('300747.SZ','美的集团 家电',0, 'nyear')]}
+    qfqs = {}
+    useful_node = []
+    for key in tops:
+        # stock_df = []
+        count = 0
+        for node in tops[key]:
+            count = count + 1
+            time.sleep(0.1)
+            stock_code = node.stock_code
+            df = getQFQTSData(stock_code)
+            print('get qfq ' + stock_code + ' ' + key + ' count = ' + str(count))
+            print('calc ' + stock_code + '\n')
+            if len(df) < 5:
+                continue
+            df = df.iloc[::-1]
+            df.index = range(0,len(df)) 
+            # df.reindex(index=df['trade_date'])
+            # df=df.sort_values(by = 'trade_date',ascending=True)
+            # print(df)
+            df = get_MACD(df)
+            # dif,dea,bar = talib.MACD(df.tclose.values)
+            # # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
+            df = df[['trade_date','diff','dea','macd']].tail(5)
+            df = df.iloc[::-1]
+            df.index = range(0,len(df)) 
+            # print(df)
+            # aa = df.ix[0,'diff']
+            if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > df.loc[0,'macd'] and df.loc[0,'dea'] > df.loc[0,'macd']:
+                if df.loc[1,'macd'] < 0:
+                    useful_node.append(node)
+                    continue
+                macd1 = df.loc[1,'macd']
+                macd2 = df.loc[2,'macd']
+                
+                if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:
+                    if macd2 < 0:
+                        useful_node.append(node)
+                        continue
+                macd3 = df.loc[3,'macd']
+                if macd1 > macd2 and macd2 < macd3 :
+                    useful_node.append(node)
+                    continue
+            
+    cur_month = time.strftime("%Y%m", time.localtime()) 
+    fo = open('product/status_a_at' + cur_month + '.txt','w')
+
+    for node in useful_node:
+        stock_code = node.stock_code
+        try:
+            csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+        except Exception as e:
+            print(stock_code + ' open wrong')
+            print(e)
+        value_table = json.load(csvfile)
+        cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
+        fo.write(str(node) + ' ' + '现金占比' + str(cash_rate) + '%\n')
+    fo.close()
+                
+                
 def updateAll():
     def mkdir(path):
         folder = os.path.exists(path)
@@ -1733,6 +1906,7 @@ def updateAll():
     mkdir('base_data\\daily')
     mkdir('base_data\\dividend')
     mkdir('base_data\\value')
+    mkdir('product')
     
     global g_dividend_data
     pro = tushare_get.getPro()
@@ -1747,9 +1921,13 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
+    findStockBySu()
+    # tushare_get.getDividendFromTSData(pro,g_business_data)
+    # getQFQTSData(g_business_data)
     # downloadAndUpdateDailyData(g_business_data)
     # downloadAndUpdateDailyData()
     # g_dividend_data = getDividendData(pro,g_business_data)
+    # g_dividend_data = getAllotmentData(pro,g_business_data)
     # g_dividend_data = getDividendData(pro)
     # deleteFile()
     # downloadFinanceData()
@@ -1767,7 +1945,7 @@ def main():
     # pandasTest('600017')
     # getDaysBestGroup()
     # getGroupAllStock(u'商品城')
-    getMonthMACD()
+    # getMonthMACD()
     
 
 if __name__ == '__main__':
