@@ -1859,21 +1859,24 @@ def findStockBySu():
             df = df[['trade_date','diff','dea','macd']].tail(5)
             df = df.iloc[::-1]
             df.index = range(0,len(df)) 
+            macd0 = df.loc[0,'macd']
             # print(df)
             # aa = df.ix[0,'diff']
-            if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > df.loc[0,'macd'] and df.loc[0,'dea'] > df.loc[0,'macd']:
+            # if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > df.loc[0,'macd'] and df.loc[0,'dea'] > df.loc[0,'macd']:
+            if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > 0 and df.loc[0,'dea'] > 0:
                 if df.loc[1,'macd'] < 0:
                     useful_node.append(node)
                     continue
                 macd1 = df.loc[1,'macd']
                 macd2 = df.loc[2,'macd']
                 
-                if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:
+                # if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:
+                if macd1 > 0:
                     if macd2 < 0:
                         useful_node.append(node)
                         continue
-                macd3 = df.loc[3,'macd']
-                if macd1 > macd2 and macd2 < macd3 :
+                # macd3 = df.loc[3,'macd']
+                if macd0 > macd1 and macd1 < macd2 :
                     useful_node.append(node)
                     continue
             
