@@ -1668,7 +1668,7 @@ def getIndustryTop():
     cur_year = 2019
     
     tops = {}
-    number = 3
+    number = 4
 
     industry_map = {}
     #count = 1
@@ -1693,7 +1693,7 @@ def getIndustryTop():
         th = industry_map[key]
         topHp = th.topk()
         topHp.sort(key=sortHp,reverse = True)
-        
+        show_number = 0
         for node in topHp:
             stock_code = node.stock_code
             try:
@@ -1704,6 +1704,9 @@ def getIndustryTop():
             value_table = json.load(csvfile)
             cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
             roe = value_table['profitability']['return_on_equity'][-1]
+            show_number = show_number + 1
+            if show_number > 2 and node.score < 500:
+                continue
             fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '%' +  '\n')
         fo.write('\n')
         print(key + ' has done')
