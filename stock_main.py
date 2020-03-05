@@ -1598,7 +1598,7 @@ def getTop(is_save = True,rule_names = ['more5','less5','more3','less3','less1']
     cur_year = int(time.strftime("%Y", local_time))
     cur_year = 2019
     
-    # rule_names = ['more5','less5','more3','less3','less1']
+    # rule_names = ['more5','less5']
     tops = {}
 
     for rule_name in rule_names:
@@ -1608,6 +1608,12 @@ def getTop(is_save = True,rule_names = ['more5','less5','more3','less3','less1']
             stock_code = stock_dic['ts_code']
             if stock_code[0:3] == '688':
                 continue
+
+            # if stock_code[0] != '3':
+            #     continue
+
+            # if not (stock_dic['industry'] == u'酒店餐饮'):
+            #     continue
             num = int(rule_name[-1])
             list_year = int(stock_dic['list_date'][0:4])
             if num == 0:
@@ -1635,6 +1641,9 @@ def getTop(is_save = True,rule_names = ['more5','less5','more3','less3','less1']
         topHps[rule_name] = topHp
         if is_save:
             fo = open('product/best_long_term_shares_' + rule_name + '.txt','w')
+            # fo = open('product/best_long_term_shares_sever' + rule_name + '.txt','w')
+            # fo = open('product/best_long_term_shares_product' + rule_name + '.txt','w')
+            # fo = open('product/best_long_term_shares_hotel' + rule_name + '.txt','w')
 
             for node in topHp:
                 stock_code = node.stock_code
@@ -1645,10 +1654,60 @@ def getTop(is_save = True,rule_names = ['more5','less5','more3','less3','less1']
                     print(e)
                 value_table = json.load(csvfile)
                 cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
-                fo.write(str(node) + ' ' + str(cash_rate) + '\n')
+                roe = value_table['profitability']['return_on_equity'][-1]
+                fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '%' +  '\n')
             print(rule_name + ' has done')
             fo.close()
     return topHps
+
+def getIndustryTop():
+    global g_business_data
+
+    local_time = time.localtime()
+    cur_year = int(time.strftime("%Y", local_time))
+    cur_year = 2019
+    
+    tops = {}
+    number = 3
+
+    industry_map = {}
+    #count = 1
+    for stock_dic in g_business_data:
+        stock_code = stock_dic['ts_code']
+        if stock_code[0:3] == '688':
+            continue
+        
+        list_year = int(stock_dic['list_date'][0:4])
+        if not industry_map.has_key(stock_dic['industry']):
+            industry_map[stock_dic['industry']] = TopKHeap(number)
+        th = industry_map[stock_dic['industry']]
+        
+        score = cal_score(stock_code = stock_code[0:6])
+        node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
+        th.push(node)
+
+
+    fo = open('product/industry_best.txt','w')
+
+    for key in industry_map:
+        th = industry_map[key]
+        topHp = th.topk()
+        topHp.sort(key=sortHp,reverse = True)
+        
+        for node in topHp:
+            stock_code = node.stock_code
+            try:
+                csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+            except Exception as e:
+                print(stock_code + ' open wrong')
+                print(e)
+            value_table = json.load(csvfile)
+            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
+            roe = value_table['profitability']['return_on_equity'][-1]
+            fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '%' +  '\n')
+        fo.write('\n')
+        print(key + ' has done')
+    fo.close()
 
 def getDaysBestGroup(begin = '20200110',end = '20200110'):
     global g_business_data
@@ -1862,19 +1921,19 @@ def findStockBySu():
             macd0 = df.loc[0,'macd']
             # print(df)
             # aa = df.ix[0,'diff']
-            # if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > df.loc[0,'macd'] and df.loc[0,'dea'] > df.loc[0,'macd']:
-            if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > 0 and df.loc[0,'dea'] > 0:
+            if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > df.loc[0,'macd'] and df.loc[0,'dea'] > df.loc[0,'macd']:#黄蓝线在红柱上面
+            # if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > 0 and df.loc[0,'dea'] > 0:#不考虑线在柱上方
                 if df.loc[1,'macd'] < 0:
                     useful_node.append(node)
                     continue
                 macd1 = df.loc[1,'macd']
                 macd2 = df.loc[2,'macd']
                 
-                # if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:
-                if macd1 > 0:
-                    if macd2 < 0:
-                        useful_node.append(node)
-                        continue
+                # if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:#
+                # if macd1 > 0:
+                #     if macd2 < 0:
+                #         useful_node.append(node)
+                #         continue
                 # macd3 = df.loc[3,'macd']
                 if macd0 > macd1 and macd1 < macd2 :
                     useful_node.append(node)
@@ -1892,7 +1951,8 @@ def findStockBySu():
             print(e)
         value_table = json.load(csvfile)
         cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
-        fo.write(str(node) + ' ' + '现金占比' + str(cash_rate) + '%\n')
+        roe = value_table['profitability']['return_on_equity'][-1]
+        fo.write(str(node) + ' ' + ' roe ' + str(roe) + '% 现金占比 ' + str(cash_rate) + '%\n')
     fo.close()
                 
                 
@@ -1924,7 +1984,7 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    findStockBySu()
+    # findStockBySu()
     # tushare_get.getDividendFromTSData(pro,g_business_data)
     # getQFQTSData(g_business_data)
     # downloadAndUpdateDailyData(g_business_data)
@@ -1944,6 +2004,7 @@ def main():
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
     # getTop()
+    getIndustryTop()
     #getAllCate()
     # pandasTest('600017')
     # getDaysBestGroup()
