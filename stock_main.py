@@ -325,9 +325,13 @@ def zhJust(string,length=28):
     #     space = ' '  # 否则使用占用1个字符位的半角空格
     return string + '  '*(difference) # 返回补齐空格后的字符串
 
+def getCurYear():
+    cur_year = int(time.strftime("%Y", time.localtime()))
+    return cur_year
+
 def showYear(cur_year):
     if not cur_year:
-        cur_year = time.strftime("%Y", time.localtime()) 
+        cur_year = getCurYear()
     cur_year = int(cur_year)
     # print('|' + 'hej'.ljust(20) + '|' + 'hej'.rjust(20) + '|' + 'hej'.center(20) + '|')
     # print('hej'.center(20, '+')) #一共有20个字符, 中间使用hej, 其他用+填充
@@ -359,7 +363,7 @@ def analyseData(stock_code,is_show = True):
         return
     
     local_time = time.localtime()
-    cur_year = int(time.strftime("%Y", local_time))
+    cur_year = getCurYear()
     #print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
 
     report_mon = 12
@@ -856,6 +860,20 @@ def analyseData(stock_code,is_show = True):
     if is_show:
         print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
+
+    str_result = zhJust(u'          研发费用（百万元）')
+    R_and_D_exps = []
+    profitability['R_and_D_exps'] = R_and_D_exps
+    for index in range(len_of_year - 1,-1,-1):#需要倒序
+        indexOfSingle = index
+        index = indexes_for_cal_lrb[index]
+        R_and_D_exp = lrb_data['R_and_D_exp'][index]
+        R_and_D_exp = int(round(float(R_and_D_exp) / 100,0))
+        R_and_D_exps.append(R_and_D_exp)
+        str_result = str_result + str(R_and_D_exp).ljust(15)
+    if is_show:
+        print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
+
     if is_show:print(zhJust(u'现金流量'))
 
     cash_flow = {}
@@ -1071,8 +1089,8 @@ def analyseAllData():
                 continue
             file_path = 'base_data/value/' + stock_code + '.json'
             #print(file_path)
-            if not os.path.exists(file_path):
-            # if True:
+            # if not os.path.exists(file_path):
+            if True:
                 print('analyse ' + stock_code)
                 analyseData(stock_code = stock_code,is_show=False)
             else:
@@ -1591,14 +1609,14 @@ def initGStockCodes():
 def sortHp(node):
     return node.score
 
-def getTop(is_save = True,rule_names = ['more5','less5','more3','less3','less1'],number = 100):
+def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','less01'],number = 150):
     global g_business_data
 
     local_time = time.localtime()
-    cur_year = int(time.strftime("%Y", local_time))
+    cur_year = getCurYear()
     cur_year = 2019
     
-    # rule_names = ['more5','less5']
+    # rule_names = ['more05','less05']
     tops = {}
 
     for rule_name in rule_names:
@@ -1614,7 +1632,12 @@ def getTop(is_save = True,rule_names = ['more5','less5','more3','less3','less1']
 
             # if not (stock_dic['industry'] == u'酒店餐饮'):
             #     continue
-            num = int(rule_name[-1])
+            num = 0
+            if rule_name[-2] == '0':
+                num = int(rule_name[-1])
+            else:
+                num = int(rule_name[-2:-1])
+            
             list_year = int(stock_dic['list_date'][0:4])
             if num == 0:
                 continue
@@ -1655,7 +1678,12 @@ def getTop(is_save = True,rule_names = ['more5','less5','more3','less3','less1']
                 value_table = json.load(csvfile)
                 cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
                 roe = value_table['profitability']['return_on_equity'][-1]
-                fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '%' +  '\n')
+                net_profit = value_table['profitability']['net_profits'][-1]
+                R_and_D_exp = value_table['profitability']['R_and_D_exps'][-1]
+                r_profit_rate = 0
+                if net_profit != 0:
+                    r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+                fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
             print(rule_name + ' has done')
             fo.close()
     return topHps
@@ -1664,7 +1692,7 @@ def getIndustryTop():
     global g_business_data
 
     local_time = time.localtime()
-    cur_year = int(time.strftime("%Y", local_time))
+    cur_year = getCurYear()
     cur_year = 2019
     
     tops = {}
@@ -1894,7 +1922,7 @@ def findStockBySu():
     # get stock macd
     # get stocks which month data show status-A
     # show that stocks
-    tops = getTop(is_save = False,rule_names = ['more5','less5'],number=150)
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=150)
     # tops = {'abc':[Node('300747.SZ','美的集团 家电',0, 'nyear')]}
     qfqs = {}
     useful_node = []
@@ -1957,8 +1985,136 @@ def findStockBySu():
         roe = value_table['profitability']['return_on_equity'][-1]
         fo.write(str(node) + ' ' + ' roe ' + str(roe) + '% 现金占比 ' + str(cash_rate) + '%\n')
     fo.close()
+
+def findStockBySuByFirstRate():
+    tops = getTop(is_save = False,rule_names = ['less09'],number=200)
+    # tops = {'abc':[Node('603986.SH','美的集团 家电',0, 'nyear')]}
+    predict_up_months = 3
+    happy_count = 0
+    sad_count = 0
+    expectation = 0
+    work_count = 0
+    fo = open('product/su_first_rate' + str(predict_up_months) + '.txt','w')
+    for key in tops:
+        # stock_df = []
+        count = 0
+        for node in tops[key]:
+            count = count + 1
+            time.sleep(0.1)
+            stock_code = node.stock_code
+            df = getQFQTSData(stock_code)
+            print('get qfq ' + stock_code + ' ' + key + ' count = ' + str(count))
+            print('calc ' + stock_code + '\n')
+            if len(df) < 5:
+                continue
+            df = df.iloc[::-1]
+            df.index = range(0,len(df)) 
+            df = get_MACD(df)
+            # print(df)
+            df.index = range(0,len(df)) 
+            first_red = False
+            is_begin_find = False
+            begin_stock = 0
+            end_stock = 0
+            len_df = len(df)
+            for i in range(len(df)):
+                if i == 0:
+                    continue
+
+                if not is_begin_find:
+                    if df.loc[i,'macd'] >= 0:
+                        first_red = True
+                    else:
+                        if not first_red:
+                            continue
+                        else:
+                            is_begin_find = True
+                else:
+                    # is_get_red = df.loc[i,'macd'] > 0 and df.loc[i,'diff'] > df.loc[i,'dea'] and df.loc[i,'dea'] > df.loc[i,'macd']
+                    is_get_red = df.loc[i,'macd'] > 0 and df.loc[i,'diff'] > 0 and df.loc[i,'dea'] > 0
+                    if is_get_red:
+                        if df.loc[i - 1,'macd'] < 0:
+                            begin_stock = df.loc[i,'close']
+                            if i + predict_up_months <= len_df - 1:
+                                end_stock = df.loc[i + predict_up_months,'close']
+                                difference = end_stock - begin_stock
+                                if difference > 0:
+                                    happy_count = happy_count + 1
+                                else:
+                                    sad_count = sad_count + 1
+                                fo.write(str(node) + '\n profit ' + str(round(difference,2)) + '\n')
+                                month_rate = round(difference / begin_stock * 100,2)
+                                fo.write(str(month_rate) + '%')
+                                fo.write('\n')
+                                expectation = expectation + month_rate
+                                work_count = work_count + 1
+                                print(stock_code + ' has done')
+                            break
+                            
+    fo.write('happy end rate: ' + str(round(float(happy_count) / (happy_count + sad_count) * 100,2)) + '%')
+    fo.write('expectation: ' + str(expectation / work_count) + '%')
+    fo.close()
                 
+def findStockByProfit():
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=5)
+    # testProfit(tops,stock_start_month = '12')
+    testProfit(tops,stock_start_month = '01')
+
+def testProfit(tops,stock_start_month = '12'):
+    stock_code = '000333.SZ'
+    # stock_code = '300785.SZ'
+    # stock_code = '002949.SZ'
+    cur_year = getCurYear()
+    fo = open('product/profit_test' + stock_start_month + '.txt','w')
+    for key in tops:
+            # stock_df = []
+            count = 0
+            for node in tops[key]:
+                stock_code = node.stock_code
+                df = getQFQTSData(stock_code)
+                # print(df)
+                len_df = len(df)
+                map_diff = {}
+                count = 1
+                str_diff = ''
+                str_net = ''
+                for i in range(len(df)):
+                    # if df.ix[i + 12,'close']:
+                    if i < (len_df - 12):
+                        # df.ix[i,'year_add'] = df.ix[i,'close'] - df.ix[i + 12,'close']
+                        trade_date = df.ix[i,'trade_date'] 
+                        if trade_date[4:6] == stock_start_month:
+                            # map_diff[str(cur_year - count)] = df.ix[i,'close'] - df.ix[i + 12,'close']
+                            str_diff = str_diff + '  ' + str(cur_year - count) + ':' + str(round(df.ix[i,'close'] - df.ix[i + 12,'close'],1))
+                            count = count + 1
+                            if count == 5:
+                                break
+                    # else:
+                        # df.ix[i,'year_add'] = 0
+                # print(map_diff)
+
+                csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+                value_table = json.load(csvfile)
+                # net_profit = value_table['profitability']['net_profits'][-1]
+                net_profits = value_table['profitability']['net_profits']
+                net_start_year = 2014
+                map_rate = {}
+                len_net = len(net_profits)
+                for i in range(len_net):
+                    if i == 0:
+                        continue
+                    map_rate[str(net_start_year + i)] = float(net_profits[i]) / net_profits[i - 1]
+                    str_net = str(net_start_year + i) + ':' + str(round((float(net_profits[i]) / net_profits[i - 1] - 1) * 100,2)) + '  ' + str_net
+                # print(net_profits)
+                # print(map_rate)
                 
+                fo.write(str(node) + '\n')
+                fo.write('利润增长  ' + str_net + '\n')
+                fo.write('股票增长  ' + str_diff + '\n')
+                fo.write('\n\n')
+
+    fo.close()
+
 def updateAll():
     def mkdir(path):
         folder = os.path.exists(path)
@@ -1998,7 +2154,7 @@ def main():
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
-    # stock_code = '600519'
+    # stock_code = '002415'
     # downloadTable(stock_code,'lrb')
     # downloadTable(stock_code,'zcfzb')
     # downloadTable(stock_code,'xjllb')
@@ -2007,12 +2163,14 @@ def main():
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
     # getTop()
-    getIndustryTop()
+    # getIndustryTop()
     #getAllCate()
     # pandasTest('600017')
     # getDaysBestGroup()
     # getGroupAllStock(u'商品城')
     # getMonthMACD()
+    # findStockByProfit()
+    findStockBySuByFirstRate()
     
 
 if __name__ == '__main__':
