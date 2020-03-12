@@ -119,6 +119,8 @@ def cal_total_assets_turnover(total_op_in,tatol_assets):
 
 def cal_return_on_equity(net_profit_company,total_owners_equity):
    #股东权益报酬率（RoE） = 归属于母公司所有者的净利润 / 归属于母公司所有者的股东权益
+   if total_owners_equity == 0:
+      return 0
    return round(float(net_profit_company) / total_owners_equity * 100,1)
 
 def cal_return_on_total_assets(net_profit_company,total_liability_and_equity):

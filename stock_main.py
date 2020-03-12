@@ -329,14 +329,14 @@ def getCurYear():
     cur_year = int(time.strftime("%Y", time.localtime()))
     return cur_year
 
-def showYear(cur_year):
+def showYear(cur_year,year_count = 5):
     if not cur_year:
         cur_year = getCurYear()
     cur_year = int(cur_year)
     # print('|' + 'hej'.ljust(20) + '|' + 'hej'.rjust(20) + '|' + 'hej'.center(20) + '|')
     # print('hej'.center(20, '+')) #一共有20个字符, 中间使用hej, 其他用+填充
     str_year = ''
-    for index in range(5,0,-1):
+    for index in range(year_count,0,-1):
         str_year = str_year + str(cur_year - index).ljust(15)
     return str_year
     #print(str_year)
@@ -362,14 +362,14 @@ def analyseData(stock_code,is_show = True):
         print('loss ' + stock_code + ', unlisted')
         return
     
-    local_time = time.localtime()
     cur_year = getCurYear()
+    is_get_update_year = False
     #print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
 
     report_mon = 12
     report_day = 31
 
-    max_count = 5
+    max_count = 10
     indexes_for_cal_lrb = []
     for index in range(len(lrb_data['report_date'])):
         yyyymmdd = lrb_data['report_date'][index].split('-')
@@ -381,8 +381,9 @@ def analyseData(stock_code,is_show = True):
 
         if single_year < cur_year and single_month == report_mon and single_day == report_day and len(indexes_for_cal_lrb) < max_count:
             indexes_for_cal_lrb.append(index)
-
-    len_of_year = len(indexes_for_cal_lrb)
+            if not is_get_update_year:
+                cur_year = single_year + 1
+                is_get_update_year = True
 
     indexes_for_cal_zcfzb = []
     for index in range(len(zcfzb_data['report_date'])):
@@ -409,9 +410,24 @@ def analyseData(stock_code,is_show = True):
             indexes_for_cal_xjllb.append(index)
 
 
-    value_table = {'year':[cur_year - 5,cur_year - 4,cur_year - 3,cur_year - 2,cur_year - 1]}
+    len_of_year = min(len(indexes_for_cal_lrb),len(indexes_for_cal_xjllb),len(indexes_for_cal_zcfzb))
+
+    while True:
+        if len(indexes_for_cal_lrb) > len_of_year:
+            indexes_for_cal_lrb.pop()
+            continue
+        if len(indexes_for_cal_xjllb) > len_of_year:
+            indexes_for_cal_xjllb.pop()
+            continue
+        if len(indexes_for_cal_zcfzb) > len_of_year:
+            indexes_for_cal_zcfzb.pop()
+            continue
+        break
+
+
+    value_table = {'last_year':(cur_year - 1)}
     #print(indexes_for_cal_lrb)
-    str_result = zhJust(u'资产负债比率（占总资产%：）    ') + showYear(cur_year)
+    str_result = zhJust(u'资产负债比率（占总资产%：）    ') + showYear(cur_year,len_of_year)
     if is_show:
         print("\033[0;37;42m{0}\033[0m".format(str_result))
     
@@ -543,7 +559,7 @@ def analyseData(stock_code,is_show = True):
     if is_show:
         print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
 
-    str_result = zhJust(u'类别      财务比例    ') + showYear(cur_year)
+    str_result = zhJust(u'类别      财务比例    ') + showYear(cur_year,len_of_year)
     if is_show:
         print('\n')
         print("\033[0;37;42m{0}\033[0m".format(str_result))
@@ -1089,15 +1105,15 @@ def analyseAllData():
                 continue
             file_path = 'base_data/value/' + stock_code + '.json'
             #print(file_path)
-            # if not os.path.exists(file_path):
-            if True:
+            if not os.path.exists(file_path):
+            # if True:
                 print('analyse ' + stock_code)
                 analyseData(stock_code = stock_code,is_show=False)
             else:
                 print('json ' + stock_code + ' is exist')
 
 
-def cal_score(stock_code):
+def cal_score(stock_code,end_year = 0):
     try:
         csvfile = open('base_data/value/' + stock_code + '.json', 'r')
     except Exception as e:
@@ -1106,20 +1122,32 @@ def cal_score(stock_code):
         return 0
 
     value_table = json.load(csvfile)
-    if len(value_table['profitability']['return_on_equity']) < 5:
+    last_year = int(value_table['last_year'])
+    if end_year == 0:
+        end_year = last_year
+    if end_year > last_year:
+        return 0
+    len_year = len(value_table['profitability']['return_on_equity'])
+    if len_year < 5 + last_year - end_year:
         return 0
     
+    start_index = len_year - 5 - last_year + end_year
+
     tatal_score = 0
     #股东权益报酬率(%) RoE
     sum_roe = 0
     is_roe_m0 = False
     min_roe = 10000
-    for roe in value_table['profitability']['return_on_equity']:
+    len_add = 0
+    for index,roe in enumerate(value_table['profitability']['return_on_equity']):
+        if index < start_index:
+            continue
         if roe < 0:
             is_roe_m0 = True
         min_roe = min(min_roe,roe)
         sum_roe = sum_roe + roe
-    average_roe = sum_roe / len(value_table['profitability']['return_on_equity'])
+        len_add = len_add + 1
+    average_roe = sum_roe / len_add
     if not is_roe_m0:
         if min_roe / average_roe < 0.3:
             tatal_score = tatal_score + 0
@@ -1139,10 +1167,14 @@ def cal_score(stock_code):
     #总资产报酬率(%) RoA
     sum_roa = 0
     min_roa = 10000
-    for roa in value_table['profitability']['return_on_total_assets']:
+    len_add = 0
+    for index,roa in enumerate(value_table['profitability']['return_on_total_assets']):
+        if index < start_index:
+            continue
         sum_roa = sum_roa + roa
         min_roa = min(min_roa,roa)
-    average_roa = sum_roa / len(value_table['profitability']['return_on_total_assets'])
+        len_add = len_add + 1
+    average_roa = sum_roa / len_add
 
     if sum_roa == 0 or min_roa <= 0:
         tatal_score = tatal_score + 0
@@ -1155,9 +1187,13 @@ def cal_score(stock_code):
 
     #税后净利 规模(百万)
     sum_net_profit = 0
-    for net_profit in value_table['profitability']['net_profits']:
+    len_add = 0
+    for index,net_profit in enumerate(value_table['profitability']['net_profits']):
+        if index < start_index:
+            continue
         sum_net_profit = sum_net_profit + net_profit
-    average_net_profit = sum_net_profit / len(value_table['profitability']['net_profits'])
+        len_add = len_add + 1
+    average_net_profit = sum_net_profit / len_add
 
     if sum_net_profit == 0:
         tatal_score = tatal_score + 0
@@ -1169,16 +1205,24 @@ def cal_score(stock_code):
     #现金状况 分析
     #总资产周转率（次）
     sum_total_assets_turnover = 0
-    for total_assets_turnover in value_table['management_capacity']['total_assets_turnover']:
+    len_add = 0
+    for index,total_assets_turnover in enumerate(value_table['management_capacity']['total_assets_turnover']):
+        if index < start_index:
+            continue
         sum_total_assets_turnover = sum_total_assets_turnover + total_assets_turnover
-    average_total_assets_turnover = sum_total_assets_turnover / len(value_table['management_capacity']['total_assets_turnover'])
+        len_add = len_add + 1
+    average_total_assets_turnover = sum_total_assets_turnover / len_add
 
 
     #现金与约当现金
     sum_cash_rate = 0
-    for cash_rate in value_table['assetsAndLiabilities']['cash_rate']:
+    len_add = 0
+    for index,cash_rate in enumerate(value_table['assetsAndLiabilities']['cash_rate']):
+        if index < start_index:
+            continue
         sum_cash_rate = sum_cash_rate + cash_rate
-    average_cash_rate = sum_cash_rate / len(value_table['assetsAndLiabilities']['cash_rate'])
+        len_add = len_add + 1
+    average_cash_rate = sum_cash_rate / len_add
 
     if average_total_assets_turnover == 0 or average_cash_rate == 0:
         tatal_score = tatal_score + 0
@@ -1192,9 +1236,13 @@ def cal_score(stock_code):
     #收现日数(日)
     #平均收现日数
     sum_average_cash_days = 0
-    for average_cash_days in value_table['management_capacity']['average_cash_days']:
+    len_add = 0
+    for index,average_cash_days in enumerate(value_table['management_capacity']['average_cash_days']):
+        if index < start_index:
+            continue
         sum_average_cash_days = sum_average_cash_days + average_cash_days
-    average_average_cash_days = sum_average_cash_days / len(value_table['management_capacity']['average_cash_days'])
+        len_add = len_add + 1
+    average_average_cash_days = sum_average_cash_days / len_add
     
     if sum_average_cash_days == 0:
         tatal_score = tatal_score + 0
@@ -1204,9 +1252,13 @@ def cal_score(stock_code):
     #销货日数(日)
     #平均销货日数（平均在库天数）
     sum_average_sale_days = 0
-    for average_sale_days in value_table['management_capacity']['average_sale_days']:
+    len_add = 0
+    for index,average_sale_days in enumerate(value_table['management_capacity']['average_sale_days']):
+        if index < start_index:
+            continue
         sum_average_sale_days = sum_average_sale_days + average_sale_days
-    average_average_sale_days = sum_average_sale_days / len(value_table['management_capacity']['average_sale_days'])
+        len_add = len_add + 1
+    average_average_sale_days = sum_average_sale_days / len_add
 
     if sum_average_sale_days == 0:
         tatal_score = tatal_score + 0
@@ -1226,11 +1278,15 @@ def cal_score(stock_code):
     sum_gross_profit_margin = 0
     min_gross_profit_margin = 100
     max_gross_profit_margin = 0
-    for gross_profit_margin in value_table['profitability']['gross_profit_margin']:
+    len_add = 0
+    for index,gross_profit_margin in enumerate(value_table['profitability']['gross_profit_margin']):
+        if index < start_index:
+            continue
         sum_gross_profit_margin = sum_gross_profit_margin + gross_profit_margin
         min_gross_profit_margin = min(min_gross_profit_margin,gross_profit_margin)
         max_gross_profit_margin = max(max_gross_profit_margin,gross_profit_margin)
-    average_gross_profit_margin = sum_gross_profit_margin / len(value_table['profitability']['gross_profit_margin'])
+        len_add = len_add + 1
+    average_gross_profit_margin = sum_gross_profit_margin / len_add
     
     if sum_gross_profit_margin == 0 or min_gross_profit_margin <= 5:
         tatal_score
@@ -1240,10 +1296,14 @@ def cal_score(stock_code):
     #经营安全边际率(%)
     sum_operating_margin_of_safety = 0
     min_operating_margin_of_safety = 100
-    for operating_margin_of_safety in value_table['profitability']['operating_margin_of_safety']:
+    len_add = 0
+    for index,operating_margin_of_safety in enumerate(value_table['profitability']['operating_margin_of_safety']):
+        if index < start_index:
+            continue
         sum_operating_margin_of_safety = sum_operating_margin_of_safety + operating_margin_of_safety
         min_operating_margin_of_safety = min(min_operating_margin_of_safety,operating_margin_of_safety)
-    average_operating_margin_of_safety = sum_operating_margin_of_safety / len(value_table['profitability']['operating_margin_of_safety'])
+        len_add = len_add + 1
+    average_operating_margin_of_safety = sum_operating_margin_of_safety / len_add
 
     if sum_operating_margin_of_safety == 0 or min_operating_margin_of_safety <= 5:
         tatal_score
@@ -1259,22 +1319,22 @@ def cal_score(stock_code):
 
     #len_net_profits = len(net_profits)
     if sum_net_profit != 0:
-        if net_profits[4] > net_profits[3]:
+        if net_profits[start_index + 4] > net_profits[start_index + 3]:
             tatal_score = tatal_score + 30
         else:
             tatal_score = tatal_score - 30
 
-        if net_profits[3] > net_profits[2]:
+        if net_profits[start_index + 3] > net_profits[start_index + 2]:
             tatal_score = tatal_score + 25
         else:
             tatal_score = tatal_score - 25
 
-        if net_profits[2] > net_profits[1]:
+        if net_profits[start_index + 2] > net_profits[start_index + 1]:
             tatal_score = tatal_score + 20
         else:
             tatal_score = tatal_score - 20
 
-        if net_profits[1] > net_profits[0]:
+        if net_profits[start_index + 1] > net_profits[start_index]:
             tatal_score = tatal_score + 15
         else:
             tatal_score = tatal_score - 15
@@ -1283,26 +1343,28 @@ def cal_score(stock_code):
 
     sum_net_flow_from_op = 0
     sum_net_flow_from_ops = value_table['net_flow_from_ops']
-    for net_flow_from_op in sum_net_flow_from_ops:
+    for index,net_flow_from_op in enumerate(sum_net_flow_from_ops):
+        if index < start_index:
+            continue
         sum_net_flow_from_op = sum_net_flow_from_op + net_flow_from_op  
     
     if sum_net_flow_from_op != 0:
-        if sum_net_flow_from_ops[4] > sum_net_flow_from_ops[3]:
+        if sum_net_flow_from_ops[start_index + 4] > sum_net_flow_from_ops[start_index + 3]:
             tatal_score = tatal_score + 30
         else:
             tatal_score = tatal_score - 30
 
-        if sum_net_flow_from_ops[3] > sum_net_flow_from_ops[2]:
+        if sum_net_flow_from_ops[start_index + 3] > sum_net_flow_from_ops[start_index + 2]:
             tatal_score = tatal_score + 25
         else:
             tatal_score = tatal_score - 25
 
-        if sum_net_flow_from_ops[2] > sum_net_flow_from_ops[1]:
+        if sum_net_flow_from_ops[start_index + 2] > sum_net_flow_from_ops[start_index + 1]:
             tatal_score = tatal_score + 20
         else:
             tatal_score = tatal_score - 20
 
-        if sum_net_flow_from_ops[1] > sum_net_flow_from_ops[0]:
+        if sum_net_flow_from_ops[start_index + 1] > sum_net_flow_from_ops[start_index + 0]:
             tatal_score = tatal_score + 15
         else:
             tatal_score = tatal_score - 15
@@ -1609,14 +1671,14 @@ def initGStockCodes():
 def sortHp(node):
     return node.score
 
-def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','less01'],number = 150):
+def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','less01'],number = 350):
     global g_business_data
 
     local_time = time.localtime()
-    cur_year = getCurYear()
     cur_year = 2019
+    score_year = 2018
     
-    # rule_names = ['more05','less05']
+    rule_names = ['less05']
     tops = {}
 
     for rule_name in rule_names:
@@ -1641,16 +1703,18 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
             list_year = int(stock_dic['list_date'][0:4])
             if num == 0:
                 continue
-            if rule_name[0:4] == 'more':
-                if cur_year - list_year < num:
-                    continue
-            elif rule_name[0:4] == 'less':
-                if cur_year - list_year >= num:
-                    continue
-            else:
-                continue
+            # if rule_name[0:4] == 'more':
+            #     if cur_year - list_year < num:
+            #         continue
+            # elif rule_name[0:4] == 'less':
+            #     if cur_year - list_year >= num:
+            #         continue
+            # else:
+            #     continue
+            # if list_year != score_year:
+            #     continue
             
-            score = cal_score(stock_code = stock_code[0:6])
+            score = cal_score(stock_code[0:6],score_year)
             node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
             th.push(node)
 
@@ -1663,7 +1727,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
         topHp.sort(key=sortHp,reverse = True)
         topHps[rule_name] = topHp
         if is_save:
-            fo = open('product/best_long_term_shares_' + rule_name + '.txt','w')
+            fo = open('product/best_long_term_shares_all' + str(score_year) + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_sever' + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_product' + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_hotel' + rule_name + '.txt','w')
@@ -1676,10 +1740,16 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
                     print(stock_code + ' open wrong')
                     print(e)
                 value_table = json.load(csvfile)
-                cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
-                roe = value_table['profitability']['return_on_equity'][-1]
-                net_profit = value_table['profitability']['net_profits'][-1]
-                R_and_D_exp = value_table['profitability']['R_and_D_exps'][-1]
+                last_year = int(value_table['last_year'])
+                if score_year == 0:
+                    score_year = last_year
+                len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+                start_index = len_year - 5 - last_year + score_year
+
+                cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+                roe = value_table['profitability']['return_on_equity'][start_index + 4]
+                net_profit = value_table['profitability']['net_profits'][start_index + 4]
+                R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
                 r_profit_rate = 0
                 if net_profit != 0:
                     r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
@@ -2054,6 +2124,57 @@ def findStockBySuByFirstRate():
     fo.write('happy end rate: ' + str(round(float(happy_count) / (happy_count + sad_count) * 100,2)) + '%')
     fo.write('expectation: ' + str(expectation / work_count) + '%')
     fo.close()
+
+def findBigMACD():
+    global g_business_data
+    cur_year = getCurYear()
+
+    # fo = open('product/macd_rate.txt','w')
+    macd_rate_table = {}
+    count = 0
+    for stock_dic in g_business_data:
+        stock_code = stock_dic['ts_code']
+        if stock_code[0:3] == '688':
+            continue
+        list_year = int(stock_dic['list_date'][0:4])
+        if cur_year - list_year <= 1:
+            continue
+
+        print('calc ' + stock_code + '\n')
+        count = count + 1
+        print(str(count) + '\n')
+        df = getQFQTSData(stock_code)
+        if len(df) < 5:
+            continue
+        df = df.iloc[::-1]
+        df.index = range(0,len(df)) 
+        df = get_MACD(df)
+
+        macd_add = 0
+
+        for i in range(len(df)):
+            # 10内的就够了
+            if df.loc[i,'macd'] > 0:
+                macd_add = macd_add + 1
+
+        macd_rate_table[stock_code] = {'ts_code':round(float(macd_add) / len(df) * 100, 2),'name':stock_dic['name']}
+        # 其实要多个线程的，太慢了
+    json_values = json.dumps(macd_rate_table)
+    fw = open('product/macd_rate.json', 'w')
+    fw.write(json_values)
+    fw.close()
+
+def analyse_macd_rate():
+    if not os.path.exists('product/macd_rate.json'):
+        findBigMACD()
+    global g_stock_codes
+    fo = open('product/macd_rate.json', 'r')
+    macd_rate_table = json.load(fo)
+    fo.close()
+    for stock_macd_rate in macd_rate_table:
+        stock_code = stock_macd_rate['ts_stock'][0:6]
+        if g_stock_codes.has_key(stock_code):
+            stock_dic = g_stock_codes[stock_macd_rate['ts_stock']]
                 
 def findStockByProfit():
     tops = getTop(is_save = False,rule_names = ['more05','less05'],number=5)
@@ -2095,6 +2216,7 @@ def testProfit(tops,stock_start_month = '12'):
 
                 csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
                 value_table = json.load(csvfile)
+                csvfile.close()
                 # net_profit = value_table['profitability']['net_profits'][-1]
                 net_profits = value_table['profitability']['net_profits']
                 net_start_year = 2014
@@ -2154,12 +2276,12 @@ def main():
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
-    # stock_code = '002415'
+    # stock_code = '300389'
     # downloadTable(stock_code,'lrb')
     # downloadTable(stock_code,'zcfzb')
     # downloadTable(stock_code,'xjllb')
     # analyseData(stock_code = stock_code)
-    # score = cal_score(stock_code = stock_code)
+    # score = cal_score(stock_code,2017)
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
     # getTop()
@@ -2170,7 +2292,8 @@ def main():
     # getGroupAllStock(u'商品城')
     # getMonthMACD()
     # findStockByProfit()
-    findStockBySuByFirstRate()
+    # findStockBySuByFirstRate()
+    findBigMACD()
     
 
 if __name__ == '__main__':
