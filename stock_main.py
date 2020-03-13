@@ -2126,6 +2126,11 @@ def findStockBySuByFirstRate():
     fo.close()
 
 def findBigMACD():
+    path = 'base_data/month'
+    folder = os.path.exists(path)
+    if not folder:                   #判断是否存在文件夹如果不存在则创建为文件夹
+        os.makedirs(path)            #makedirs 创建文件时如果路径不存在会创建这个路径
+
     global g_business_data
     cur_year = getCurYear()
 
@@ -2143,17 +2148,27 @@ def findBigMACD():
         print('calc ' + stock_code + '\n')
         count = count + 1
         print(str(count) + '\n')
-        df = getQFQTSData(stock_code)
+
+        if not os.path.exists('base_data/month/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+            df = getQFQTSData(stock_code)
+            df.to_csv('base_data/month/' + stock_code[0:6] + '.csv')
+        else:
+            df = pd.read_csv('base_data/month/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+        
         if len(df) < 5:
             continue
         df = df.iloc[::-1]
         df.index = range(0,len(df)) 
         df = get_MACD(df)
-
+        df = df.iloc[::-1]
         macd_add = 0
-
+        macd_count = 0
+        # print(df)
         for i in range(len(df)):
-            # 10内的就够了
+            # 10年内的就够了
+            macd_count = macd_count + 1
+            if macd_add > 120:
+                break
             if df.loc[i,'macd'] > 0:
                 macd_add = macd_add + 1
 
@@ -2173,7 +2188,7 @@ def analyseMACDRate():
     score_year = 2018
     cur_year = getCurYear()
     fo.close()
-    th = TopKHeap(1000)
+    th = TopKHeap(250)
     for key,stock_macd_rate in macd_rate_table.iteritems():
         stock_code = key[0:6]
         if stock_code[0:3] == '688':
@@ -2183,13 +2198,14 @@ def analyseMACDRate():
             stock_dic = g_stock_codes[stock_code]
             list_year = int(stock_dic['list_date'][0:4])
             score = cal_score(stock_code[0:6],score_year)
-            node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],stock_macd_rate['macd_rate'],
+            node = Node(key,stock_dic['name'] + ' ' + stock_dic['industry'],stock_macd_rate['macd_rate'],
                 str(cur_year - list_year + 1) + 'year score:' + str(score))
             th.push(node)
     topHp = th.topk()
     topHp.sort(key=sortHp,reverse = True)
-    fo = open('product/macd_rate_sort.txt','w')
+    fo = open('product/macd_rate_sort_2016.txt','w')
 
+    count = 0
     for node in topHp:
         stock_code = node.stock_code
         try:
@@ -2197,6 +2213,7 @@ def analyseMACDRate():
         except Exception as e:
             print(stock_code + ' open wrong')
             print(e)
+        count = count + 1
         value_table = json.load(csvfile)
         last_year = int(value_table['last_year'])
         if score_year == 0:
@@ -2211,7 +2228,7 @@ def analyseMACDRate():
         r_profit_rate = 0
         if net_profit != 0:
             r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
-        fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+        fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '% '  + str(count) + '\n')
     print('done')
     fo.close()
                 
@@ -2297,7 +2314,8 @@ def updateAll():
     initGStockCodes()
     downloadFinanceData()
     g_dividend_data = getDividendData(pro,g_business_data)
-    downloadAndUpdateDailyData(g_business_data)# Sometimes,just update high-score stock
+    # downloadAndUpdateDailyData(g_business_data)# Sometimes,just update high-score stock
+    findBigMACD()
     analyseAllData()
 
 def main():
@@ -2331,9 +2349,9 @@ def main():
     # getGroupAllStock(u'商品城')
     # getMonthMACD()
     # findStockByProfit()
-    findBigMACD()
+    # findBigMACD()
     # findStockBySuByFirstRate()
-    # analyseMACDRate()
+    analyseMACDRate()
     # getQFQTSData()
     
 
