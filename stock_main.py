@@ -1977,12 +1977,12 @@ def getAllCate():
 
 def getQFQTSData(stock='000333.SZ'):
     #qfq = 前复权
-    count = 0
-    max_count = 20000
     cur_day = time.strftime("%Y%m%d", time.localtime()) 
     stock_code = stock
     df = ts.pro_bar(ts_code=stock_code,adj='qfq',freq='M', start_date='19900101', end_date=cur_day)
-    #   print(df)
+    # print(df)
+    df = df.dropna(axis=0, how='any')
+    # print(df)
         # time.sleep(0.1)
     return df
 
@@ -2157,24 +2157,63 @@ def findBigMACD():
             if df.loc[i,'macd'] > 0:
                 macd_add = macd_add + 1
 
-        macd_rate_table[stock_code] = {'ts_code':round(float(macd_add) / len(df) * 100, 2),'name':stock_dic['name']}
+        macd_rate_table[stock_code] = {'macd_rate':round(float(macd_add) / len(df) * 100, 2),'name':stock_dic['name']}
         # 其实要多个线程的，太慢了
     json_values = json.dumps(macd_rate_table)
     fw = open('product/macd_rate.json', 'w')
     fw.write(json_values)
     fw.close()
 
-def analyse_macd_rate():
+def analyseMACDRate():
     if not os.path.exists('product/macd_rate.json'):
         findBigMACD()
     global g_stock_codes
     fo = open('product/macd_rate.json', 'r')
     macd_rate_table = json.load(fo)
+    score_year = 2018
+    cur_year = getCurYear()
     fo.close()
-    for stock_macd_rate in macd_rate_table:
-        stock_code = stock_macd_rate['ts_stock'][0:6]
+    th = TopKHeap(1000)
+    for key,stock_macd_rate in macd_rate_table.iteritems():
+        stock_code = key[0:6]
+        if stock_code[0:3] == '688':
+                continue
+        
         if g_stock_codes.has_key(stock_code):
-            stock_dic = g_stock_codes[stock_macd_rate['ts_stock']]
+            stock_dic = g_stock_codes[stock_code]
+            list_year = int(stock_dic['list_date'][0:4])
+            score = cal_score(stock_code[0:6],score_year)
+            node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],stock_macd_rate['macd_rate'],
+                str(cur_year - list_year + 1) + 'year score:' + str(score))
+            th.push(node)
+    topHp = th.topk()
+    topHp.sort(key=sortHp,reverse = True)
+    fo = open('product/macd_rate_sort.txt','w')
+
+    for node in topHp:
+        stock_code = node.stock_code
+        try:
+            csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+        except Exception as e:
+            print(stock_code + ' open wrong')
+            print(e)
+        value_table = json.load(csvfile)
+        last_year = int(value_table['last_year'])
+        if score_year == 0:
+            score_year = last_year
+        len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+        start_index = len_year - 5 - last_year + score_year
+
+        cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+        roe = value_table['profitability']['return_on_equity'][start_index + 4]
+        net_profit = value_table['profitability']['net_profits'][start_index + 4]
+        R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+        r_profit_rate = 0
+        if net_profit != 0:
+            r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+        fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+    print('done')
+    fo.close()
                 
 def findStockByProfit():
     tops = getTop(is_save = False,rule_names = ['more05','less05'],number=5)
@@ -2292,8 +2331,10 @@ def main():
     # getGroupAllStock(u'商品城')
     # getMonthMACD()
     # findStockByProfit()
-    # findStockBySuByFirstRate()
     findBigMACD()
+    # findStockBySuByFirstRate()
+    # analyseMACDRate()
+    # getQFQTSData()
     
 
 if __name__ == '__main__':
