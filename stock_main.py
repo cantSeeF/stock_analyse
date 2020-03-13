@@ -1992,9 +1992,8 @@ def findStockBySu():
     # get stock macd
     # get stocks which month data show status-A
     # show that stocks
-    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=150)
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=500)
     # tops = {'abc':[Node('300747.SZ','美的集团 家电',0, 'nyear')]}
-    qfqs = {}
     useful_node = []
     for key in tops:
         # stock_df = []
@@ -2003,9 +2002,16 @@ def findStockBySu():
             count = count + 1
             time.sleep(0.1)
             stock_code = node.stock_code
-            df = getQFQTSData(stock_code)
+
             print('get qfq ' + stock_code + ' ' + key + ' count = ' + str(count))
             print('calc ' + stock_code + '\n')
+
+            if not os.path.exists('base_data/month/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+                df = getQFQTSData(stock_code)
+                df.to_csv('base_data/month/' + stock_code[0:6] + '.csv')
+            else:
+                df = pd.read_csv('base_data/month/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+
             if len(df) < 5:
                 continue
             df = df.iloc[::-1]
@@ -2149,7 +2155,7 @@ def findBigMACD():
         count = count + 1
         print(str(count) + '\n')
 
-        if not os.path.exists('base_data/month/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+        if not os.path.exists('base_data/month/' + stock_code[0:6] + '.csv'):
             df = getQFQTSData(stock_code)
             df.to_csv('base_data/month/' + stock_code[0:6] + '.csv')
         else:
@@ -2322,7 +2328,7 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    # findStockBySu()
+    findStockBySu()
     # tushare_get.getDividendFromTSData(pro,g_business_data)
     # getQFQTSData(g_business_data)
     # downloadAndUpdateDailyData(g_business_data)
@@ -2351,7 +2357,7 @@ def main():
     # findStockByProfit()
     # findBigMACD()
     # findStockBySuByFirstRate()
-    analyseMACDRate()
+    # analyseMACDRate()
     # getQFQTSData()
     
 
