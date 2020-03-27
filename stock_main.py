@@ -157,7 +157,7 @@ def downloadAndUpdateDailyDataThread(codes):
         count = count + 1
         cur_day = (datetime.datetime.now() - datetime.timedelta(days=0)).strftime('%Y%m%d')
         # start_time = (datetime.datetime.now() - datetime.timedelta(days=365)).strftime('%Y%m%d')
-        start_time = '19900101'
+        start_time = '20180101'
         while True:
             try:
                 stock_type = stock_code[7:9]
@@ -1678,7 +1678,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
     cur_year = 2019
     score_year = 2018
     
-    rule_names = ['less05']
+    # rule_names = ['less05']
     tops = {}
 
     for rule_name in rule_names:
@@ -1703,14 +1703,14 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
             list_year = int(stock_dic['list_date'][0:4])
             if num == 0:
                 continue
-            # if rule_name[0:4] == 'more':
-            #     if cur_year - list_year < num:
-            #         continue
-            # elif rule_name[0:4] == 'less':
-            #     if cur_year - list_year >= num:
-            #         continue
-            # else:
-            #     continue
+            if rule_name[0:4] == 'more':
+                if cur_year - list_year < num:
+                    continue
+            elif rule_name[0:4] == 'less':
+                if cur_year - list_year >= num:
+                    continue
+            else:
+                continue
             # if list_year != score_year:
             #     continue
             
@@ -1917,13 +1917,13 @@ def getGroupAllStock(industry):
         fo.write(string)
     fo.close()
 
-def get_EMA(df,N):
+def get_EMA(df,N,close_name = 'close'):
     for i in range(len(df)):
         if i==0:
-            df.ix[i,'ema']=df.ix[i,'close']
+            df.ix[i,'ema']=df.ix[i,close_name]
 #            df.ix[i,'ema']=0
         if i>0:
-            df.ix[i,'ema']=(2*df.ix[i,'close']+(N-1)*df.ix[i-1,'ema'])/(N+1)
+            df.ix[i,'ema']=(2*df.ix[i,close_name]+(N-1)*df.ix[i-1,'ema'])/(N+1)
     ema=list(df['ema'])
     return ema
  
@@ -1975,11 +1975,11 @@ def getAllCate():
     for key in all_cate:
         print(key)
 
-def getQFQTSData(stock='000333.SZ'):
+def getQFQTSData(stock='000333.SZ',freq = 'M',start_date = '19900101'):
     #qfq = 前复权
     cur_day = time.strftime("%Y%m%d", time.localtime()) 
     stock_code = stock
-    df = ts.pro_bar(ts_code=stock_code,adj='qfq',freq='M', start_date='19900101', end_date=cur_day)
+    df = ts.pro_bar(ts_code=stock_code,adj='qfq',freq=freq, start_date=start_date, end_date=cur_day)
     # print(df)
     df = df.dropna(axis=0, how='any')
     # print(df)
@@ -2324,15 +2324,88 @@ def updateAll():
     findBigMACD()
     analyseAllData()
 
+def togDownloadAndUpdateDailyData():
+    tops = getTop(is_save = False,rule_names = ['more01'],number=500)
+    stock_codes = []
+    for key in tops:
+        for node in tops[key]:
+            stock_code = node.stock_code
+            stock_codes.append({'ts_code':stock_code})
+
+    # business_data = [{'ts_code':'002752.SZ'}]
+    downloadAndUpdateDailyData(stock_codes)
+
+def AnalyseDailyMACD():
+    tops = getTop(is_save = False,rule_names = ['more01'],number=10)
+    # tops = {'abc':[Node('300747.SZ','美的集团 家电',0, 'nyear')]}
+    useful_node = []
+    for key in tops:
+        # stock_df = []
+        count = 0
+        for node in tops[key]:
+            count = count + 1
+            time.sleep(0.1)
+            stock_code = node.stock_code
+
+            print('get qfq ' + stock_code + ' ' + key + ' count = ' + str(count))
+            print('calc ' + stock_code + '\n')
+
+            if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+                cur_day = (datetime.datetime.now() - datetime.timedelta(days=720)).strftime('%Y%m%d')
+                df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
+                df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
+            else:
+                df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+
+            if len(df) < 5:
+                continue
+            df = df.iloc[::-1]
+            df.index = range(0,len(df)) 
+            # df.reindex(index=df['trade_date'])
+            # df=df.sort_values(by = 'trade_date',ascending=True)
+            # print(df)
+            fast_line = get_EMA(df,14)
+            
+            slow_line = get_EMA(df,60)
+            pd_diff = pd.Series(fast_line)-pd.Series(slow_line)
+            pd_diff = pd_diff.iloc[::-1]
+            pd_diff.index = range(0,len(pd_diff)) 
+
+            up_count = 0
+            for index in range(12):
+                diff = pd_diff[index]
+                if diff > 0:
+                    up_count = up_count + 1
+                else:
+                    break
+            if up_count > 0 and up_count < 10:
+                useful_node.append(node)
+            
+    cur_month = time.strftime("%Y%m", time.localtime()) 
+    fo = open('product/daily_ema_' + cur_month + '.txt','w')
+
+    for node in useful_node:
+        stock_code = node.stock_code
+        try:
+            csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+        except Exception as e:
+            print(stock_code + ' open wrong')
+            print(e)
+        value_table = json.load(csvfile)
+        cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
+        roe = value_table['profitability']['return_on_equity'][-1]
+        fo.write(str(node) + ' ' + ' roe ' + str(roe) + '% 现金占比 ' + str(cash_rate) + '%\n')
+    fo.close()
+
 def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    findStockBySu()
+    # findStockBySu()
     # tushare_get.getDividendFromTSData(pro,g_business_data)
     # getQFQTSData(g_business_data)
     # downloadAndUpdateDailyData(g_business_data)
-    # downloadAndUpdateDailyData()
+    # togDownloadAndUpdateDailyData()
     # g_dividend_data = getDividendData(pro,g_business_data)
     # g_dividend_data = getAllotmentData(pro,g_business_data)
     # g_dividend_data = getDividendData(pro)
@@ -2358,7 +2431,8 @@ def main():
     # findBigMACD()
     # findStockBySuByFirstRate()
     # analyseMACDRate()
-    # getQFQTSData()
+    # getQFQTSData() 
+    AnalyseDailyMACD()
     
 
 if __name__ == '__main__':
