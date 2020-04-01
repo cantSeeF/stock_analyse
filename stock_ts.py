@@ -129,6 +129,18 @@ def getAdjFactor(pro):
    df = pro.adj_factor(ts_code='000333.SZ', trade_date='')
    print(df[1300:1400])
 
+def getConcept(pro):
+   #复权因子
+   df = pro.concept()
+   print(df)
+
+   #    #取5G概念明细
+   # df = pro.concept_detail(id='TS2', fields='ts_code,name')
+
+   # #或者查询某个股票的概念
+
+   # df = pro.concept_detail(ts_code = '600848.SH')
+
 def getDividendFromTSData(pro,business_data):
    count = 0
    for stock_dic in business_data:
@@ -151,6 +163,7 @@ def main():
    #hsgtTop10(pro,'20191211')
    #hsgtTop10(pro,'20191212')
    #blockTradeCode(pro,'300015','20191210',curDate)
+   getConcept(pro)
 
 if __name__ == '__main__':
     main()

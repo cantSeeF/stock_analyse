@@ -1678,7 +1678,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
     cur_year = 2019
     score_year = 2018
     
-    # rule_names = ['less05']
+    rule_names = ['less05']
     tops = {}
 
     for rule_name in rule_names:
@@ -1692,7 +1692,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
             # if stock_code[0] != '3':
             #     continue
 
-            # if not (stock_dic['industry'] == u'酒店餐饮'):
+            # if not (stock_dic['industry'] == u'食品'):
             #     continue
             num = 0
             if rule_name[-2] == '0':
@@ -1703,16 +1703,16 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
             list_year = int(stock_dic['list_date'][0:4])
             if num == 0:
                 continue
-            if rule_name[0:4] == 'more':
-                if cur_year - list_year < num:
-                    continue
-            elif rule_name[0:4] == 'less':
-                if cur_year - list_year >= num:
-                    continue
-            else:
-                continue
-            # if list_year != score_year:
+            # if rule_name[0:4] == 'more':
+            #     if cur_year - list_year < num:
+            #         continue
+            # elif rule_name[0:4] == 'less':
+            #     if cur_year - list_year >= num:
+            #         continue
+            # else:
             #     continue
+            if list_year >= 2019:
+                continue
             
             score = cal_score(stock_code[0:6],score_year)
             node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
@@ -1727,7 +1727,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
         topHp.sort(key=sortHp,reverse = True)
         topHps[rule_name] = topHp
         if is_save:
-            fo = open('product/best_long_term_shares_all' + str(score_year) + rule_name + '.txt','w')
+            fo = open('product/best_long_term_shares_food' + str(score_year) + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_sever' + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_product' + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_hotel' + rule_name + '.txt','w')
@@ -1928,6 +1928,7 @@ def get_EMA(df,N,close_name = 'close'):
     return ema
  
 def get_MACD(df,short=12,long=26,M=9):
+    # MACD 似乎数量只要够就行了，不要太多
     a=get_EMA(df,short)
     b=get_EMA(df,long)
     diff = pd.Series(a)-pd.Series(b)
@@ -1975,7 +1976,7 @@ def getAllCate():
     for key in all_cate:
         print(key)
 
-def getQFQTSData(stock='000333.SZ',freq = 'M',start_date = '19900101'):
+def getQFQTSData(stock='000333.SZ',freq = 'M',start_date = '20100101'):
     #qfq = 前复权
     cur_day = time.strftime("%Y%m%d", time.localtime()) 
     stock_code = stock
@@ -2008,6 +2009,7 @@ def findStockBySu():
 
             if not os.path.exists('base_data/month/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
                 df = getQFQTSData(stock_code)
+                # print(df)
                 df.to_csv('base_data/month/' + stock_code[0:6] + '.csv')
             else:
                 df = pd.read_csv('base_data/month/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
@@ -2336,7 +2338,7 @@ def togDownloadAndUpdateDailyData():
     downloadAndUpdateDailyData(stock_codes)
 
 def AnalyseDailyMACD():
-    tops = getTop(is_save = False,rule_names = ['more01'],number=10)
+    tops = getTop(is_save = False,rule_names = ['more01'],number=500)
     # tops = {'abc':[Node('300747.SZ','美的集团 家电',0, 'nyear')]}
     useful_node = []
     for key in tops:
@@ -2353,6 +2355,7 @@ def AnalyseDailyMACD():
             if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
                 cur_day = (datetime.datetime.now() - datetime.timedelta(days=720)).strftime('%Y%m%d')
                 df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
+                # print(df)
                 df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
             else:
                 df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
@@ -2372,16 +2375,17 @@ def AnalyseDailyMACD():
             pd_diff.index = range(0,len(pd_diff)) 
 
             up_count = 0
-            for index in range(12):
+            for index in range(18):
                 diff = pd_diff[index]
                 if diff > 0:
                     up_count = up_count + 1
                 else:
+                    # if up_count == 0:
                     break
-            if up_count > 0 and up_count < 10:
+            if up_count > 0 and up_count < 15:
                 useful_node.append(node)
             
-    cur_month = time.strftime("%Y%m", time.localtime()) 
+    cur_month = time.strftime("%Y%m%d", time.localtime()) 
     fo = open('product/daily_ema_' + cur_month + '.txt','w')
 
     for node in useful_node:
