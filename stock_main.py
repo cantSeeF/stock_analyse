@@ -1671,7 +1671,7 @@ def initGStockCodes():
 def sortHp(node):
     return node.score
 
-def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','less01'],number = 350):
+def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','less01'],number = 500):
     global g_business_data
 
     local_time = time.localtime()
@@ -1727,7 +1727,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
         topHp.sort(key=sortHp,reverse = True)
         topHps[rule_name] = topHp
         if is_save:
-            fo = open('product/best_long_term_shares_food' + str(score_year) + rule_name + '.txt','w')
+            fo = open('product/best_long_term_shares_all_' + str(score_year) + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_sever' + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_product' + rule_name + '.txt','w')
             # fo = open('product/best_long_term_shares_hotel' + rule_name + '.txt','w')
@@ -1764,9 +1764,10 @@ def getIndustryTop():
     local_time = time.localtime()
     cur_year = getCurYear()
     cur_year = 2019
+    score_year = 2018
     
     tops = {}
-    number = 4
+    number = 5
 
     industry_map = {}
     #count = 1
@@ -1780,7 +1781,7 @@ def getIndustryTop():
             industry_map[stock_dic['industry']] = TopKHeap(number)
         th = industry_map[stock_dic['industry']]
         
-        score = cal_score(stock_code = stock_code[0:6])
+        score = cal_score(stock_code[0:6],score_year)
         node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
         th.push(node)
 
@@ -1800,12 +1801,22 @@ def getIndustryTop():
                 print(stock_code + ' open wrong')
                 print(e)
             value_table = json.load(csvfile)
-            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
-            roe = value_table['profitability']['return_on_equity'][-1]
+            last_year = int(value_table['last_year'])
+            if score_year == 0:
+                    score_year = last_year
+            len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+            start_index = len_year - 5 - last_year + score_year
+            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+            roe = value_table['profitability']['return_on_equity'][start_index + 4]
+            net_profit = value_table['profitability']['net_profits'][start_index + 4]
+            R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+            r_profit_rate = 0
+            if net_profit != 0:
+                r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
             show_number = show_number + 1
             if show_number > 2 and node.score < 500:
                 continue
-            fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '%' +  '\n')
+            fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
         fo.write('\n')
         print(key + ' has done')
     fo.close()
