@@ -48,6 +48,14 @@ class Node:
     def score(self):
         return self._score
 
+    # @property
+    # def remarks(self):
+    #     return self._remarks
+
+    def add_remarks(self,add_remark):
+        self._remarks = self._remarks + add_remark
+
+
     def __str__(self):
 		return '%s  %s  %s %s' %(self._stock_code,self._stock_name,self._score,self._remarks)
 
@@ -2352,6 +2360,8 @@ def AnalyseDailyMACD():
     global g_stock_codes
     tops = getTop(is_save = False,rule_names = ['more01'],number=500)
     # tops = {'abc':[Node('603288.SH','美的集团 家电',0, 'nyear')]}
+    cur_year = 2019
+    score_year = 2018
     node_map = {}
     for key in tops:
         # stock_df = []
@@ -2365,7 +2375,7 @@ def AnalyseDailyMACD():
             print('calc ' + stock_code + '\n')
 
             if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
-                cur_day = (datetime.datetime.now() - datetime.timedelta(days=720)).strftime('%Y%m%d')
+                cur_day = (datetime.datetime.now() - datetime.timedelta(days=400)).strftime('%Y%m%d')
                 df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
                 # print(df)
                 df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
@@ -2380,21 +2390,25 @@ def AnalyseDailyMACD():
             # df=df.sort_values(by = 'trade_date',ascending=True)
             # print(df)
             fast_line = get_EMA(df,14)
-            
+
             slow_line = get_EMA(df,60)
             pd_diff = pd.Series(fast_line)-pd.Series(slow_line)
             pd_diff = pd_diff.iloc[::-1]
             pd_diff.index = range(0,len(pd_diff)) 
-
+            # print(pd_diff)
             up_count = 0
-            for index in range(18):
+            for index in range(40):
                 diff = pd_diff[index]
                 if diff > 0:
                     up_count = up_count + 1
                 else:
                     # if up_count == 0:
                     break
-            if up_count > 0 and up_count < 15:
+            if up_count > 0:
+                up_count_str = str(up_count) + '天'
+                if up_count >= 40:
+                    up_count_str = '40+天'
+                node.add_remarks(' ' + up_count_str)
                 industry_name = g_stock_codes[stock_code[0:6]]['industry']
                 if not node_map.has_key(industry_name):
                     node_map[industry_name] = []
@@ -2403,7 +2417,6 @@ def AnalyseDailyMACD():
             
     cur_month = time.strftime("%Y%m%d", time.localtime()) 
     fo = open('product/daily_ema_' + cur_month + '.txt','w')
-
     for key in node_map:
         useful_node = node_map[key]
         fo.write(str(key) + '%\n')
@@ -2415,9 +2428,20 @@ def AnalyseDailyMACD():
                 print(stock_code + ' open wrong')
                 print(e)
             value_table = json.load(csvfile)
-            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
-            roe = value_table['profitability']['return_on_equity'][-1]
-            fo.write(str(node) + ' ' + ' roe ' + str(roe) + '% 现金占比 ' + str(cash_rate) + '%\n')
+            last_year = int(value_table['last_year'])
+            if score_year == 0:
+                    score_year = last_year
+            len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+            start_index = len_year - 5 - last_year + score_year
+            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+            roe = value_table['profitability']['return_on_equity'][start_index + 4]
+            net_profit = value_table['profitability']['net_profits'][start_index + 4]
+            R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+            r_profit_rate = 0
+            if net_profit != 0:
+                r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+
+            fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
     fo.close()
 
 def main():
