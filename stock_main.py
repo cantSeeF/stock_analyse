@@ -2349,9 +2349,10 @@ def togDownloadAndUpdateDailyData():
     downloadAndUpdateDailyData(stock_codes)
 
 def AnalyseDailyMACD():
+    global g_stock_codes
     tops = getTop(is_save = False,rule_names = ['more01'],number=500)
-    # tops = {'abc':[Node('300747.SZ','美的集团 家电',0, 'nyear')]}
-    useful_node = []
+    # tops = {'abc':[Node('603288.SH','美的集团 家电',0, 'nyear')]}
+    node_map = {}
     for key in tops:
         # stock_df = []
         count = 0
@@ -2394,22 +2395,29 @@ def AnalyseDailyMACD():
                     # if up_count == 0:
                     break
             if up_count > 0 and up_count < 15:
+                industry_name = g_stock_codes[stock_code[0:6]]['industry']
+                if not node_map.has_key(industry_name):
+                    node_map[industry_name] = []
+                useful_node = node_map[industry_name]
                 useful_node.append(node)
             
     cur_month = time.strftime("%Y%m%d", time.localtime()) 
     fo = open('product/daily_ema_' + cur_month + '.txt','w')
 
-    for node in useful_node:
-        stock_code = node.stock_code
-        try:
-            csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
-        except Exception as e:
-            print(stock_code + ' open wrong')
-            print(e)
-        value_table = json.load(csvfile)
-        cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
-        roe = value_table['profitability']['return_on_equity'][-1]
-        fo.write(str(node) + ' ' + ' roe ' + str(roe) + '% 现金占比 ' + str(cash_rate) + '%\n')
+    for key in node_map:
+        useful_node = node_map[key]
+        fo.write(str(key) + '%\n')
+        for node in useful_node:
+            stock_code = node.stock_code
+            try:
+                csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+            except Exception as e:
+                print(stock_code + ' open wrong')
+                print(e)
+            value_table = json.load(csvfile)
+            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
+            roe = value_table['profitability']['return_on_equity'][-1]
+            fo.write(str(node) + ' ' + ' roe ' + str(roe) + '% 现金占比 ' + str(cash_rate) + '%\n')
     fo.close()
 
 def main():
