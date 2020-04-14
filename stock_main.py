@@ -48,6 +48,10 @@ class Node:
     def score(self):
         return self._score
 
+    @property
+    def stock_name(self):
+        return self._stock_name
+
     # @property
     # def remarks(self):
     #     return self._remarks
@@ -1766,7 +1770,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
             fo.close()
     return topHps
 
-def getIndustryTop():
+def getIndustryTop(is_save = True,number = 5):
     global g_business_data
 
     local_time = time.localtime()
@@ -1775,7 +1779,6 @@ def getIndustryTop():
     score_year = 2018
     
     tops = {}
-    number = 5
 
     industry_map = {}
     #count = 1
@@ -1793,8 +1796,10 @@ def getIndustryTop():
         node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
         th.push(node)
 
+    if not is_save:
+        return industry_map
 
-    fo = open('product/industry_best.txt','w')
+    fo = open('product/industry_best_all.txt','w')
 
     for key in industry_map:
         th = industry_map[key]
@@ -1822,8 +1827,8 @@ def getIndustryTop():
             if net_profit != 0:
                 r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
             show_number = show_number + 1
-            if show_number > 2 and node.score < 500:
-                continue
+            # if show_number > 2 and node.score < 500:
+            #     continue
             fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
         fo.write('\n')
         print(key + ' has done')
@@ -1939,7 +1944,7 @@ def getGroupAllStock(industry):
 def get_EMA(df,N,close_name = 'close'):
     for i in range(len(df)):
         if i==0:
-            df.ix[i,'ema']=df.ix[i,close_name]
+            df.loc[i,'ema']=df.loc[i,close_name]
 #            df.ix[i,'ema']=0
         if i>0:
             df.ix[i,'ema']=(2*df.ix[i,close_name]+(N-1)*df.ix[i-1,'ema'])/(N+1)
@@ -2358,21 +2363,28 @@ def togDownloadAndUpdateDailyData():
 
 def AnalyseDailyMACD():
     global g_stock_codes
-    tops = getTop(is_save = False,rule_names = ['more01'],number=500)
+    tops = getIndustryTop(is_save = False,number = 15)
     # tops = {'abc':[Node('603288.SH','美的集团 家电',0, 'nyear')]}
     cur_year = 2019
     score_year = 2018
     node_map = {}
+    industry_count = 0
     for key in tops:
         # stock_df = []
+        industry_count = industry_count + 1
         count = 0
-        for node in tops[key]:
+        th = tops[key]
+        topHp = th.topk()
+        topHp.sort(key=sortHp,reverse = True)
+        # topHp = th
+        print('\n')
+        for node in topHp:
             count = count + 1
             time.sleep(0.1)
             stock_code = node.stock_code
+            name = node.stock_name
 
-            print('get qfq ' + stock_code + ' ' + key + ' count = ' + str(count))
-            print('calc ' + stock_code + '\n')
+            print('get qfq ' + stock_code + ' ' + name + ' count = ' + str(industry_count) + '..' + str(count))
 
             if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
                 cur_day = (datetime.datetime.now() - datetime.timedelta(days=400)).strftime('%Y%m%d')
@@ -2396,6 +2408,9 @@ def AnalyseDailyMACD():
             pd_diff = pd_diff.iloc[::-1]
             pd_diff.index = range(0,len(pd_diff)) 
             # print(pd_diff)
+            df = df.iloc[::-1]
+            df.index = range(0,len(df)) 
+            # print(df)
             up_count = 0
             for index in range(40):
                 diff = pd_diff[index]
@@ -2408,6 +2423,13 @@ def AnalyseDailyMACD():
                 up_count_str = str(up_count) + '天'
                 if up_count >= 40:
                     up_count_str = '40+天'
+                    up_count = 40
+                close = df.ix[0,'close']
+                last_close = df.ix[up_count,'close']
+                up_count_str = up_count_str + ' 现价：' + str(round(close,2)) + ' 之前：' + str(round(last_close,2))
+                print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),stock_code + ' ' + name + ' ' + up_count_str + '\n'))
+                # print(up_count_str)
+
                 node.add_remarks(' ' + up_count_str)
                 industry_name = g_stock_codes[stock_code[0:6]]['industry']
                 if not node_map.has_key(industry_name):
@@ -2416,7 +2438,7 @@ def AnalyseDailyMACD():
                 useful_node.append(node)
             
     cur_month = time.strftime("%Y%m%d", time.localtime()) 
-    fo = open('product/daily_ema_' + cur_month + '.txt','w')
+    fo = open('product/daily_ema_industry_' + cur_month + '.txt','w')
     for key in node_map:
         useful_node = node_map[key]
         fo.write(str(key) + '%\n')
