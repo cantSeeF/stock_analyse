@@ -25,5 +25,12 @@
             "program": "${workspaceFolder}/mysql_op.py",
             "console": "integratedTerminal"
         },
+        {
+            "name": "card",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/analyse_card.py",
+            "console": "integratedTerminal"
+        },
     ]
 }

@@ -7,6 +7,5 @@ Sshares.txt
 token.txt
 instance/
 base_data/
-product/
 *.csv
 *.xml

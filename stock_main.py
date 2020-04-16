@@ -2470,7 +2470,7 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    # findStockBySu()
+    findStockBySu()
     # tushare_get.getDividendFromTSData(pro,g_business_data)
     # getQFQTSData(g_business_data)
     # downloadAndUpdateDailyData(g_business_data)
@@ -2501,7 +2501,7 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    AnalyseDailyMACD()
+    # AnalyseDailyMACD()
     
 
 if __name__ == '__main__':
