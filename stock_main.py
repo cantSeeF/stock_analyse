@@ -2018,8 +2018,13 @@ def findStockBySu():
     # get stocks which month data show status-A
     # show that stocks
     tops = getTop(is_save = False,rule_names = ['more05','less05'],number=500)
-    # tops = {'abc':[Node('300747.SZ','美的集团 家电',0, 'nyear')]}
-    useful_node = []
+    # tops = {'abc':[Node('300753.SZ','美的集团 家电',0, 'nyear')]}
+    month_count = 12
+    useful_node_string_up = []
+    useful_node_string_down = []
+    for _ in range(month_count):
+        useful_node_string_up.append([])
+        useful_node_string_down.append([])
     for key in tops:
         # stock_df = []
         count = 0
@@ -2048,44 +2053,96 @@ def findStockBySu():
             df = get_MACD(df)
             # dif,dea,bar = talib.MACD(df.tclose.values)
             # # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
-            df = df[['trade_date','diff','dea','macd']].tail(5)
+            df = df[['trade_date','diff','dea','macd']].tail(month_count + 2)
             df = df.iloc[::-1]
             df.index = range(0,len(df)) 
-            macd0 = df.loc[0,'macd']
-            # print(df)
-            # aa = df.ix[0,'diff']
-            if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > df.loc[0,'macd'] and df.loc[0,'dea'] > df.loc[0,'macd']:#黄蓝线在红柱上面
-            # if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > 0 and df.loc[0,'dea'] > 0:#不考虑线在柱上方
-                if df.loc[1,'macd'] < 0:
-                    useful_node.append(node)
-                    continue
-                macd1 = df.loc[1,'macd']
-                macd2 = df.loc[2,'macd']
-                
-                # if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:#
-                # if macd1 > 0:
-                #     if macd2 < 0:
-                #         useful_node.append(node)
-                #         continue
-                # macd3 = df.loc[3,'macd']
-                if macd0 > macd1 and macd1 < macd2 :
-                    useful_node.append(node)
-                    continue
-            
-    cur_month = time.strftime("%Y%m", time.localtime()) 
-    fo = open('product/status_a_at' + cur_month + '.txt','w')
+            for cur_month in range(month_count):
+                up_list = useful_node_string_up[cur_month]
+                down_list = useful_node_string_down[cur_month]
 
-    for node in useful_node:
-        stock_code = node.stock_code
-        try:
-            csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
-        except Exception as e:
-            print(stock_code + ' open wrong')
-            print(e)
-        value_table = json.load(csvfile)
-        cash_rate = value_table['assetsAndLiabilities']['cash_rate'][-1]
-        roe = value_table['profitability']['return_on_equity'][-1]
-        fo.write(str(node) + ' ' + ' roe ' + str(roe) + '% 现金占比 ' + str(cash_rate) + '%\n')
+                macd0 = df.loc[cur_month,'macd']
+                macd1 = df.loc[cur_month + 1,'macd']
+                macd2 = df.loc[cur_month + 2,'macd']
+                # print(df)
+                # aa = df.ix[0,'diff']
+                if macd0 > 0 and df.loc[cur_month,'diff'] > macd0 and df.loc[cur_month,'dea'] > macd0:#黄蓝线在红柱上面
+                # if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > 0 and df.loc[0,'dea'] > 0:#不考虑线在柱上方
+                    if df.loc[cur_month + 1,'macd'] < 0:
+                        up_list.append(node)
+                        continue
+                    
+                    # if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:#
+                    # if macd1 > 0:
+                    #     if macd2 < 0:
+                    #         useful_node.append(node)
+                    #         continue
+                    # macd3 = df.loc[3,'macd']
+                    if macd0 > macd1 and macd1 < macd2 :
+                        up_list.append(node)
+                        continue
+
+                if macd0 > 0 and df.loc[cur_month,'diff'] > 0 and df.loc[cur_month,'dea'] > 0:#不考虑线在柱上方
+                    if df.loc[cur_month + 1,'macd'] < 0:
+                        down_list.append(node)
+                        continue
+                    
+                    # if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:#
+                    # if macd1 > 0:
+                    #     if macd2 < 0:
+                    #         useful_node.append(node)
+                    #         continue
+                    # macd3 = df.loc[3,'macd']
+                    if macd0 > macd1 and macd1 < macd2 :
+                        down_list.append(node)
+                        continue
+                
+    cur_year = int(time.strftime("%Y", time.localtime()))
+    cur_month = int(time.strftime("%m", time.localtime()))
+
+    fo = open('product/status_a.txt','w')
+
+    for index_month in range(month_count):
+        up_list = useful_node_string_up[index_month]
+        up_list_len = len(up_list)
+        down_list = useful_node_string_down[index_month]
+        up_list.extend(down_list)
+        index_count = 0
+        that_year = cur_year
+        that_month = cur_month - index_month - 1
+        if that_month < 1:
+            that_year = cur_year - 1
+            that_month = that_month + 12
+
+        fo.write('\n' + str(that_year) + '-' + str(that_month) + ':\n')
+        for node in up_list:
+            index_count = index_count + 1
+            stock_code = node.stock_code
+            try:
+                csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+            except Exception as e:
+                print(stock_code + ' open wrong')
+                print(e)
+
+            value_table = json.load(csvfile)
+            last_year = int(value_table['last_year'])
+            score_year = last_year
+            len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+            start_index = len_year - 5 - last_year + score_year
+            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+            roe = value_table['profitability']['return_on_equity'][start_index + 4]
+            net_profit = value_table['profitability']['net_profits'][start_index + 4]
+            R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+
+            r_profit_rate = 0
+            if net_profit != 0:
+                r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+            str_up = str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '% ' + '\n'
+            if index_count > up_list_len:
+                str_up = '** ' + str_up
+            fo.write(str_up)
+    print('done')
+
+
     fo.close()
 
 def findStockBySuByFirstRate():
