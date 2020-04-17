@@ -15,6 +15,7 @@ import bs4
 import stock_ts as tushare_get
 import tushare as ts
 import sys
+import copy
 # import talib
 import random
 reload(sys)
@@ -1723,7 +1724,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
             #         continue
             # else:
             #     continue
-            if list_year >= 2019:
+            if list_year >= cur_year - 1:
                 continue
             
             score = cal_score(stock_code[0:6],score_year)
@@ -2019,7 +2020,7 @@ def findStockBySu():
     # show that stocks
     tops = getTop(is_save = False,rule_names = ['more05','less05'],number=500)
     # tops = {'abc':[Node('300753.SZ','美的集团 家电',0, 'nyear')]}
-    month_count = 12
+    month_count = 15
     useful_node_string_up = []
     useful_node_string_down = []
     for _ in range(month_count):
@@ -2028,10 +2029,10 @@ def findStockBySu():
     for key in tops:
         # stock_df = []
         count = 0
-        for node in tops[key]:
+        for node_init in tops[key]:
             count = count + 1
             time.sleep(0.1)
-            stock_code = node.stock_code
+            stock_code = node_init.stock_code
 
             print('get qfq ' + stock_code + ' ' + key + ' count = ' + str(count))
             print('calc ' + stock_code + '\n')
@@ -2053,10 +2054,12 @@ def findStockBySu():
             df = get_MACD(df)
             # dif,dea,bar = talib.MACD(df.tclose.values)
             # # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
-            df = df[['trade_date','diff','dea','macd']].tail(month_count + 2)
+            df = df[['close','trade_date','diff','dea','macd']].tail(month_count + 2)
             df = df.iloc[::-1]
+            # print(df)
             df.index = range(0,len(df)) 
             for cur_month in range(month_count):
+                node = copy.deepcopy(node_init)
                 up_list = useful_node_string_up[cur_month]
                 down_list = useful_node_string_down[cur_month]
 
@@ -2068,6 +2071,7 @@ def findStockBySu():
                 if macd0 > 0 and df.loc[cur_month,'diff'] > macd0 and df.loc[cur_month,'dea'] > macd0:#黄蓝线在红柱上面
                 # if df.loc[0,'macd'] > 0 and df.loc[0,'diff'] > 0 and df.loc[0,'dea'] > 0:#不考虑线在柱上方
                     if df.loc[cur_month + 1,'macd'] < 0:
+                        node.add_remarks(' ' + str(df.loc[cur_month,'trade_date'])[2:6] + ':' + str(round(df.loc[cur_month,'close'],1)))
                         up_list.append(node)
                         continue
                     
@@ -2078,23 +2082,22 @@ def findStockBySu():
                     #         continue
                     # macd3 = df.loc[3,'macd']
                     if macd0 > macd1 and macd1 < macd2 :
+                        node.add_remarks(' mid_a ')
+                        node.add_remarks(' ' + str(df.loc[cur_month,'trade_date'])[2:6] + ':' + str(round(df.loc[cur_month,'close'],1)))
                         up_list.append(node)
                         continue
 
                 if macd0 > 0 and df.loc[cur_month,'diff'] > 0 and df.loc[cur_month,'dea'] > 0:#不考虑线在柱上方
                     if df.loc[cur_month + 1,'macd'] < 0:
+                        node.add_remarks(' ' + str(df.loc[cur_month,'trade_date'])[2:6] + ':' + str(round(df.loc[cur_month,'close'],1)))
                         down_list.append(node)
                         continue
-                    
-                    # if macd1 > 0 and df.loc[1,'diff'] > macd1 and df.loc[1,'dea'] > macd1:#
-                    # if macd1 > 0:
-                    #     if macd2 < 0:
-                    #         useful_node.append(node)
-                    #         continue
-                    # macd3 = df.loc[3,'macd']
                     if macd0 > macd1 and macd1 < macd2 :
+                        node.add_remarks(' mid_a ')
+                        node.add_remarks(' ' + str(df.loc[cur_month,'trade_date'])[2:6] + ':' + str(round(df.loc[cur_month,'close'],1)))
                         down_list.append(node)
                         continue
+                del node
                 
     cur_year = int(time.strftime("%Y", time.localtime()))
     cur_month = int(time.strftime("%m", time.localtime()))
