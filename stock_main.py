@@ -1835,6 +1835,107 @@ def getIndustryTop(is_save = True,number = 5):
         print(key + ' has done')
     fo.close()
 
+def getTopAllScore(is_save = True,rule_names = ['more05','less05','more03','less03','less01'],number = 300):
+    global g_business_data
+
+    local_time = time.localtime()
+    cur_year = 2019
+    score_year = 2018
+    
+    rule_names = ['less05']
+    tops = {}
+
+    for rule_name in rule_names:
+        th = TopKHeap(number)
+        #count = 1
+        for stock_dic in g_business_data:
+            stock_code = stock_dic['ts_code']
+            if stock_code[0:3] == '688':
+                continue
+
+            # if stock_code[0] != '3':
+            #     continue
+
+            if stock_dic['industry'] == u'银行' or stock_dic['industry'] == u'全国地产' or stock_dic['industry'] == u'房产服务' or stock_dic['industry'] == u'区域地产':
+                continue
+            num = 0
+            if rule_name[-2] == '0':
+                num = int(rule_name[-1])
+            else:
+                num = int(rule_name[-2:-1])
+            
+            list_year = int(stock_dic['list_date'][0:4])
+            if num == 0:
+                continue
+            # if rule_name[0:4] == 'more':
+            #     if cur_year - list_year < num:
+            #         continue
+            # elif rule_name[0:4] == 'less':
+            #     if cur_year - list_year >= num:
+            #         continue
+            # else:
+            #     continue
+            if list_year >= cur_year:
+                continue
+            
+            scores = []
+            score_of_year = ''
+            score = 0
+            for index in range(6):
+                score0 = cal_score(stock_code[0:6],score_year - index)
+                if score0 > 0:
+                    scores.append(score0)
+                    score_of_year = score_of_year + ' ' + str(score_year - index) + ':' + str(score0)
+                    score = score + score0
+
+            score_len = len(scores)
+            if score_len == 0:
+                score_len = 1
+            score = score / score_len
+            node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
+            node.add_remarks(score_of_year)
+            th.push(node)
+
+        tops[rule_name] = th
+        print(rule_name + ' has get top')
+    topHps = {}
+    for rule_name in rule_names:
+        th = tops[rule_name]
+        topHp = th.topk()
+        topHp.sort(key=sortHp,reverse = True)
+        topHps[rule_name] = topHp
+        if is_save:
+            fo = open('product/best_shares_all_score' + str(score_year) + rule_name + '.txt','w')
+            # fo = open('product/best_long_term_shares_sever' + rule_name + '.txt','w')
+            # fo = open('product/best_long_term_shares_product' + rule_name + '.txt','w')
+            # fo = open('product/best_long_term_shares_hotel' + rule_name + '.txt','w')
+
+            for node in topHp:
+                stock_code = node.stock_code
+                try:
+                    csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+                except Exception as e:
+                    print(stock_code + ' open wrong')
+                    print(e)
+                value_table = json.load(csvfile)
+                last_year = int(value_table['last_year'])
+                if score_year == 0:
+                    score_year = last_year
+                len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+                start_index = len_year - 5 - last_year + score_year
+
+                cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+                roe = value_table['profitability']['return_on_equity'][start_index + 4]
+                net_profit = value_table['profitability']['net_profits'][start_index + 4]
+                R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+                r_profit_rate = 0
+                if net_profit != 0:
+                    r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+                fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+            print(rule_name + ' has done')
+            fo.close()
+    return topHps
+
 def getDaysBestGroup(begin = '20200110',end = '20200110'):
     global g_business_data
     days_group = []
@@ -2385,31 +2486,6 @@ def testProfit(tops,stock_start_month = '12'):
 
     fo.close()
 
-def updateAll():
-    def mkdir(path):
-        folder = os.path.exists(path)
-        if not folder:                   #判断是否存在文件夹如果不存在则创建为文件夹
-            os.makedirs(path)            #makedirs 创建文件时如果路径不存在会创建这个路径
-            print (path + " create")
-        else:
-            print (path + " is exist")
-		
-    mkdir('base_data\\business')
-    mkdir('base_data\\daily')
-    mkdir('base_data\\dividend')
-    mkdir('base_data\\value')
-    mkdir('product')
-    
-    global g_dividend_data
-    pro = tushare_get.getPro()
-    tushare_get.getBusinessData(pro)
-    initGStockCodes()
-    downloadFinanceData()
-    g_dividend_data = getDividendData(pro,g_business_data)
-    # downloadAndUpdateDailyData(g_business_data)# Sometimes,just update high-score stock
-    findBigMACD()
-    analyseAllData()
-
 def togDownloadAndUpdateDailyData():
     tops = getTop(is_save = False,rule_names = ['more01'],number=500)
     stock_codes = []
@@ -2526,11 +2602,36 @@ def AnalyseDailyMACD():
             fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
     fo.close()
 
+def updateAll():
+    def mkdir(path):
+        folder = os.path.exists(path)
+        if not folder:                   #判断是否存在文件夹如果不存在则创建为文件夹
+            os.makedirs(path)            #makedirs 创建文件时如果路径不存在会创建这个路径
+            print (path + " create")
+        else:
+            print (path + " is exist")
+		
+    mkdir('base_data\\business')
+    mkdir('base_data\\daily')
+    mkdir('base_data\\dividend')
+    mkdir('base_data\\value')
+    mkdir('product')
+    
+    global g_dividend_data
+    pro = tushare_get.getPro()
+    tushare_get.getBusinessData(pro)
+    initGStockCodes()
+    downloadFinanceData()
+    g_dividend_data = getDividendData(pro,g_business_data)
+    # downloadAndUpdateDailyData(g_business_data)# Sometimes,just update high-score stock
+    findBigMACD()
+    analyseAllData()
+
 def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    findStockBySu()
+    # findStockBySu()
     # tushare_get.getDividendFromTSData(pro,g_business_data)
     # getQFQTSData(g_business_data)
     # downloadAndUpdateDailyData(g_business_data)
@@ -2549,7 +2650,7 @@ def main():
     # score = cal_score(stock_code,2017)
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    # getTop()
+    getTopAllScore()
     # getIndustryTop()
     #getAllCate()
     # pandasTest('600017')
