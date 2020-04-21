@@ -20,6 +20,7 @@ import copy
 import random
 reload(sys)
 sys.setdefaultencoding('utf-8')
+from selenium import webdriver
 
 import heapq
 
@@ -1609,6 +1610,54 @@ def getDividendData(pro,business_data = []):
     print('done!')
     return dividend_dic
 
+def crawlStockValueFromWeb():
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=500)
+    value_dic = {}
+    count = 0
+    browser = webdriver.Chrome()
+    fo = open('product/estimate_value' + '.txt','w')
+    for key in tops:
+        for node in tops[key]:
+            count = count + 1
+            stock_code = node.stock_code[7:9] + node.stock_code[0:6]
+
+            if value_dic.has_key(stock_code):
+                print(stock_code + ' has got')
+                continue
+            while True:
+                try:
+                    url = 'https://www.touzid.com/company/dnp.html#/' + stock_code
+                    browser.get(url)
+                    browser.execute_script('var box = document.getElementsByClassName("el-popup-parent--hidden");\
+                        box[0].style.height = "100%";\
+                        box[0].style.overflow = "scroll";')
+                    
+                    element = browser.find_elements_by_class_name('cell')
+                    buy_price = 0
+                    cur_price = 0
+                    for i in range(len(element)):
+                        # print(element[i].text)
+                        if element[i].text == u'合理买入价格':
+                            buy_price = element[i + 1].text
+                        if element[i].text == u'当前价格':
+                            cur_price = element[i + 1].text
+                        if buy_price != 0 and cur_price != 0:
+                            break
+                    value_dic[stock_code] = {'buy_price':buy_price,'cur_price':cur_price}
+                    time.sleep(1.0)
+                    value_str = str(node) + ' 当前价格：' + cur_price + ' 估计价格：' + buy_price
+                    print(value_str)
+                    if buy_price == 0:
+                        buy_price == 1
+                    if count < 100 or cur_price / buy_price < 1.2:
+                        fo.write(value_str + '\n')
+                    break
+                except Exception as e:
+                    print(e)
+                    time.sleep(1.0)
+                    continue
+    fo.close()
+
 def getAllotmentData(pro,business_data = []):
     # business_data = [{'ts_code':'600117.SH'}]
     #tushare is bad.
@@ -2650,7 +2699,7 @@ def main():
     # score = cal_score(stock_code,2017)
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
-    getTopAllScore()
+    # getTopAllScore()
     # getIndustryTop()
     #getAllCate()
     # pandasTest('600017')
@@ -2663,6 +2712,7 @@ def main():
     # analyseMACDRate()
     # getQFQTSData() 
     # AnalyseDailyMACD()
+    crawlStockValueFromWeb()
     
 
 if __name__ == '__main__':
