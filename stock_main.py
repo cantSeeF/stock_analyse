@@ -1932,15 +1932,16 @@ def getTopAllScore(is_save = True,rule_names = ['more05','less05','more03','less
             score = 0
             for index in range(6):
                 score0 = cal_score(stock_code[0:6],score_year - index)
-                if score0 > 0:
-                    scores.append(score0)
-                    score_of_year = score_of_year + ' ' + str(score_year - index) + ':' + str(score0)
-                    score = score + score0
+                # if score0 > 0:
+                scores.append(score0)
+                score_of_year = score_of_year + ' ' + str(score_year - index) + ':' + str(score0)
+                score = score + score0
 
             score_len = len(scores)
             if score_len == 0:
                 score_len = 1
-            score = score / score_len
+            score = scores[0]
+            # score = score / score_len
             node = Node(stock_code,stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
             node.add_remarks(score_of_year)
             th.push(node)
@@ -2546,13 +2547,19 @@ def togDownloadAndUpdateDailyData():
     # business_data = [{'ts_code':'002752.SZ'}]
     downloadAndUpdateDailyData(stock_codes)
 
-def AnalyseDailyMACD():
+def AnalyseDailyEMA():
     global g_stock_codes
     tops = getIndustryTop(is_save = False,number = 15)
-    # tops = {'abc':[Node('603288.SH','美的集团 家电',0, 'nyear')]}
+    # th = TopKHeap(2)
+    # th.push(Node('603288.SH','美的集团 家电',0, 'nyear'))
+    # th.push(Node('002377.SZ','美的集团 家电',0, 'nyear'))
+    # th.push(Node('300087.SZ','美的集团 家电',0, 'nyear'))
+    # tops = {'abc':th}
     cur_year = 2019
     score_year = 2018
-    node_map = {}
+    # node_map = {}
+    node_maps = [{},{},{},{},{},{},{},{},{},{}]
+    date_list = []
     industry_count = 0
     for key in tops:
         # stock_df = []
@@ -2565,7 +2572,7 @@ def AnalyseDailyMACD():
         print('\n')
         for node in topHp:
             count = count + 1
-            time.sleep(0.1)
+            # time.sleep(0.1)
             stock_code = node.stock_code
             name = node.stock_name
 
@@ -2579,7 +2586,7 @@ def AnalyseDailyMACD():
             else:
                 df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
 
-            if len(df) < 5:
+            if len(df) < 100:
                 continue
             df = df.iloc[::-1]
             df.index = range(0,len(df)) 
@@ -2596,60 +2603,168 @@ def AnalyseDailyMACD():
             df = df.iloc[::-1]
             df.index = range(0,len(df)) 
             # print(df)
-            up_count = 0
-            for index in range(40):
-                diff = pd_diff[index]
-                if diff > 0:
-                    up_count = up_count + 1
-                else:
-                    # if up_count == 0:
-                    break
-            if up_count > 0:
-                up_count_str = str(up_count) + '天'
-                if up_count >= 40:
-                    up_count_str = '40+天'
-                    up_count = 40
-                close = df.ix[0,'close']
-                last_close = df.ix[up_count,'close']
-                up_count_str = up_count_str + ' 现价：' + str(round(close,2)) + ' 之前：' + str(round(last_close,2))
-                print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),stock_code + ' ' + name + ' ' + up_count_str + '\n'))
-                # print(up_count_str)
-
-                node.add_remarks(' ' + up_count_str)
-                industry_name = g_stock_codes[stock_code[0:6]]['industry']
-                if not node_map.has_key(industry_name):
-                    node_map[industry_name] = []
-                useful_node = node_map[industry_name]
-                useful_node.append(node)
             
-    cur_month = time.strftime("%Y%m%d", time.localtime()) 
-    fo = open('product/daily_ema_industry_' + cur_month + '.txt','w')
-    for key in node_map:
-        useful_node = node_map[key]
-        fo.write(str(key) + '%\n')
-        for node in useful_node:
-            stock_code = node.stock_code
-            try:
-                csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
-            except Exception as e:
-                print(stock_code + ' open wrong')
-                print(e)
-            value_table = json.load(csvfile)
-            last_year = int(value_table['last_year'])
-            if score_year == 0:
-                    score_year = last_year
-            len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
-            start_index = len_year - 5 - last_year + score_year
-            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
-            roe = value_table['profitability']['return_on_equity'][start_index + 4]
-            net_profit = value_table['profitability']['net_profits'][start_index + 4]
-            R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
-            r_profit_rate = 0
-            if net_profit != 0:
-                r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
 
-            fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+            for node_index in range(len(node_maps)):
+                node_map = node_maps[node_index]
+                start_index = node_index * 5
+                up_count = 0
+                for index in range(40):
+                    diff = pd_diff[index + start_index]
+                    if diff > 0:
+                        up_count = up_count + 1
+                    else:
+                        # if up_count == 0:
+                        break
+                if up_count > 0:
+                    up_count_str = str(up_count) + '天'
+                    if up_count >= 40:
+                        up_count_str = '40+天'
+                        up_count = 40
+                    close = df.ix[start_index,'close']
+                    close_date = str(df.ix[start_index,'trade_date'])
+                    last_close = df.ix[start_index + up_count,'close']
+                    last_date = str(df.ix[start_index + up_count,'trade_date'])
+                    up_count_str = up_count_str + ' ' + close_date + ':' + str(round(close,2)) + ' ' + last_date +  ':' + str(round(last_close,2))
+                    # print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),stock_code + ' ' + name + ' ' + up_count_str + '\n'))
+                    # print(up_count_str)
+                    node_copy = copy.deepcopy(node)
+                    node_copy.add_remarks(' ' + up_count_str)
+                    industry_name = g_stock_codes[stock_code[0:6]]['industry']
+                    if not node_map.has_key(industry_name):
+                        node_map[industry_name] = []
+                    useful_node = node_map[industry_name]
+                    useful_node.append(node_copy)
+
+    for node_index in range(len(node_maps)):
+        node_map = node_maps[node_index]
+        cur_day = (datetime.datetime.now() - datetime.timedelta(days=node_index * 7)).strftime('%Y%m%d')
+        fo = open('product/industry_ema/daily_ema_industry_' + cur_day + '.txt','w')
+
+        key_list = []
+        for key in node_map:
+            key_list.append(key)
+        key_list.sort()
+
+        for index in range(len(key_list)):
+            key = key_list[index]
+            useful_node = node_map[key]
+            fo.write(str(key) + '%\n')
+            for node in useful_node:
+                stock_code = node.stock_code
+                try:
+                    csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+                except Exception as e:
+                    print(stock_code + ' open wrong')
+                    print(e)
+                value_table = json.load(csvfile)
+                last_year = int(value_table['last_year'])
+                if score_year == 0:
+                        score_year = last_year
+                len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+                start_index = len_year - 5 - last_year + score_year
+                cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+                roe = value_table['profitability']['return_on_equity'][start_index + 4]
+                net_profit = value_table['profitability']['net_profits'][start_index + 4]
+                R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+                r_profit_rate = 0
+                if net_profit != 0:
+                    r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+
+                fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+        fo.close()
+
+def getValueFromJson(para_dic = {'stock_code':'300753','target_name':'return_on_equity','years':[2018,2017]}):#5年内
+    # para_dic = {'stock_code':'300753','target_name':'return_on_equity','years':[2018,2017]}
+    stock_code = para_dic['stock_code']
+    target_name = para_dic['target_name']
+    years = para_dic['years']
+    category_dict = {'profitability':{'return_on_equity':1}}
+    category_name = 'profitability'
+    for key in category_dict:
+        if category_dict[key].has_key(target_name):
+            category_name = key
+            break
+    try:
+        csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+    except Exception as e:
+        print(stock_code + ' open wrong')
+        print(e)
+    value_table = json.load(csvfile)
+
+    target_values = {}
+    last_year = int(value_table['last_year'])
+    # print(value_table[category_name][target_name])
+    len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+    for score_year in years:
+        index = score_year - last_year + len_year - 1
+        if index >= len_year or index < 0:
+            target_values[str(score_year)] = 0
+        target_values[str(score_year)] = value_table[category_name][target_name][index]
+    # print(target_values)
+    return target_values
+
+def analyseROE():
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=400)
+    # tops = {'abc':[Node('300753.SZ','美的集团 家电',0, 'nyear')]}
+    useful_node = []
+    count = 0
+    fo = open('product/roe_with_price.txt','w')
+
+    for key in tops:
+        # stock_df = []
+        for node_init in tops[key]:
+            count = count + 1
+            time.sleep(0.1)
+            stock_code = node_init.stock_code
+
+            print('get qfq ' + stock_code + ' ' + key + ' count = ' + str(count))
+            print('calc ' + stock_code + '\n')
+            
+            years = [2018,2017,2016,2015,2014]
+            roes = getValueFromJson({'stock_code':stock_code,'target_name':'return_on_equity','years':years})
+
+            fo.write(str(node_init) + '\n')
+
+            if not os.path.exists('base_data/month/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+                df = getQFQTSData(stock_code)
+                # print(df)
+                df.to_csv('base_data/month/' + stock_code[0:6] + '.csv')
+            else:
+                df = pd.read_csv('base_data/month/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+
+            if len(df) < 5:
+                continue
+
+            year_price = {}
+            for year in years:
+                year_price[str(year + 1)] = {}
+            # print(df)
+            year_index = 0
+            year = years[year_index]
+            month_begin = '04'
+            month_end = '12'
+            month_str1 = str(year + 1) + month_begin
+            month_str2 = str(year + 1) + month_end
+            for i in range(len(df)):
+                trade_date = str(df.ix[i,'trade_date'])
+                if trade_date[0:6] == month_str2:
+                    year_price[str(year + 1)][month_end] = round(df.loc[i,'close'],1)
+                if trade_date[0:6] == month_str1:
+                    year_index = year_index + 1
+                    if year_index >= len(years):
+                        break
+                    year_price[str(year + 1)][month_begin] = round(df.ix[i,'close'],1)
+                    year = years[year_index]
+                    month_str1 = str(year + 1) + month_begin
+                    month_str2 = str(year + 1) + month_end
+                
+            fo.write(str(roes) + '\n')
+            fo.write(str(year_price) + '\n\n')
+            # print(roes)
+            # print(year_price)
     fo.close()
+
 
 def updateAll():
     def mkdir(path):
@@ -2711,8 +2826,10 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    # AnalyseDailyMACD()
-    crawlStockValueFromWeb()
+    AnalyseDailyEMA()
+    # crawlStockValueFromWeb()
+    # getValueFromJson()
+    # analyseROE()
     
 
 if __name__ == '__main__':
