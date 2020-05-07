@@ -679,8 +679,9 @@ def analyseData(stock_code,is_show = True):
     management_capacity['inventory_turnover'] = inventory_turnover
     for index in range(len_of_year - 1,-1,-1):#需要倒序
         indexOfSingle = index
-        index = indexes_for_cal_zcfzb[index]
+        index = indexes_for_cal_lrb[indexOfSingle]
         op_costs = lrb_data['op_costs'][index]
+        index = indexes_for_cal_zcfzb[indexOfSingle]
         stock = zcfzb_data['stock'][index]
         inventory_turnover.append(utils.cal_inventory_turnover(op_costs,stock))
         str_result = str_result + str(inventory_turnover[len_of_year - indexOfSingle - 1]).ljust(15)
@@ -2788,14 +2789,14 @@ def updateAll():
     downloadFinanceData()
     g_dividend_data = getDividendData(pro,g_business_data)
     # downloadAndUpdateDailyData(g_business_data)# Sometimes,just update high-score stock
-    findBigMACD()
+    # findBigMACD()
     analyseAllData()
 
 def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    # findStockBySu()
+    findStockBySu()
     # tushare_get.getDividendFromTSData(pro,g_business_data)
     # getQFQTSData(g_business_data)
     # downloadAndUpdateDailyData(g_business_data)
@@ -2806,7 +2807,7 @@ def main():
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
-    # stock_code = '300389'
+    # stock_code = '002684'
     # downloadTable(stock_code,'lrb')
     # downloadTable(stock_code,'zcfzb')
     # downloadTable(stock_code,'xjllb')
@@ -2826,7 +2827,7 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    AnalyseDailyEMA()
+    # AnalyseDailyEMA()
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
