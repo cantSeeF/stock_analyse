@@ -1738,8 +1738,8 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
     global g_business_data
 
     local_time = time.localtime()
-    cur_year = 2019
-    score_year = 2018
+    cur_year = 2020
+    score_year = 2019
     
     rule_names = ['less05']
     tops = {}
@@ -1757,6 +1757,8 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
 
             # if not (stock_dic['industry'] == u'食品'):
             #     continue
+            if stock_dic['industry'] == u'银行' or stock_dic['industry'] == u'全国地产' or stock_dic['industry'] == u'房产服务' or stock_dic['industry'] == u'区域地产':
+                continue
             num = 0
             if rule_name[-2] == '0':
                 num = int(rule_name[-1])
@@ -1804,7 +1806,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
                     print(e)
                 value_table = json.load(csvfile)
                 last_year = int(value_table['last_year'])
-                if score_year == 0:
+                if score_year == 0 or score_year > last_year:
                     score_year = last_year
                 len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
                 start_index = len_year - 5 - last_year + score_year
@@ -1826,8 +1828,8 @@ def getIndustryTop(is_save = True,number = 5):
 
     local_time = time.localtime()
     cur_year = getCurYear()
-    cur_year = 2019
-    score_year = 2018
+    cur_year = 2020
+    score_year = 2019
     
     tops = {}
 
@@ -1866,7 +1868,7 @@ def getIndustryTop(is_save = True,number = 5):
                 print(e)
             value_table = json.load(csvfile)
             last_year = int(value_table['last_year'])
-            if score_year == 0:
+            if score_year == 0 or score_year > last_year:
                     score_year = last_year
             len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
             start_index = len_year - 5 - last_year + score_year
@@ -1889,8 +1891,8 @@ def getTopAllScore(is_save = True,rule_names = ['more05','less05','more03','less
     global g_business_data
 
     local_time = time.localtime()
-    cur_year = 2019
-    score_year = 2018
+    cur_year = 2020
+    score_year = 2019
     
     rule_names = ['less05']
     tops = {}
@@ -1970,7 +1972,7 @@ def getTopAllScore(is_save = True,rule_names = ['more05','less05','more03','less
                     print(e)
                 value_table = json.load(csvfile)
                 last_year = int(value_table['last_year'])
-                if score_year == 0:
+                if score_year == 0 or score_year > last_year:
                     score_year = last_year
                 len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
                 start_index = len_year - 5 - last_year + score_year
@@ -2460,7 +2462,7 @@ def analyseMACDRate():
         count = count + 1
         value_table = json.load(csvfile)
         last_year = int(value_table['last_year'])
-        if score_year == 0:
+        if score_year == 0 or score_year > last_year:
             score_year = last_year
         len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
         start_index = len_year - 5 - last_year + score_year
@@ -2552,12 +2554,12 @@ def AnalyseDailyEMA():
     global g_stock_codes
     tops = getIndustryTop(is_save = False,number = 15)
     # th = TopKHeap(2)
-    # th.push(Node('603288.SH','美的集团 家电',0, 'nyear'))
+    # th.push(Node('002770.SH','美的集团 家电',0, 'nyear'))
     # th.push(Node('002377.SZ','美的集团 家电',0, 'nyear'))
     # th.push(Node('300087.SZ','美的集团 家电',0, 'nyear'))
     # tops = {'abc':th}
-    cur_year = 2019
-    score_year = 2018
+    cur_year = 2020
+    score_year = 2019
     # node_map = {}
     node_maps = [{},{},{},{},{},{},{},{},{},{}]
     date_list = []
@@ -2660,7 +2662,7 @@ def AnalyseDailyEMA():
                     print(e)
                 value_table = json.load(csvfile)
                 last_year = int(value_table['last_year'])
-                if score_year == 0:
+                if score_year == 0 or score_year > last_year:
                         score_year = last_year
                 len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
                 start_index = len_year - 5 - last_year + score_year
@@ -2796,7 +2798,7 @@ def main():
     global g_dividend_data
     initGStockCodes()
     pro = tushare_get.getPro()
-    findStockBySu()
+    # findStockBySu()
     # tushare_get.getDividendFromTSData(pro,g_business_data)
     # getQFQTSData(g_business_data)
     # downloadAndUpdateDailyData(g_business_data)
@@ -2807,7 +2809,7 @@ def main():
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
-    # stock_code = '002684'
+    # stock_code = '002770'
     # downloadTable(stock_code,'lrb')
     # downloadTable(stock_code,'zcfzb')
     # downloadTable(stock_code,'xjllb')
@@ -2818,7 +2820,7 @@ def main():
     # getTopAllScore()
     # getIndustryTop()
     #getAllCate()
-    # pandasTest('600017')
+    # pandasTest('002770')
     # getDaysBestGroup()
     # getGroupAllStock(u'商品城')
     # getMonthMACD()
@@ -2827,7 +2829,7 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    # AnalyseDailyEMA()
+    AnalyseDailyEMA()
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
