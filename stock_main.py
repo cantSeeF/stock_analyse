@@ -19,7 +19,7 @@ import copy
 # import talib
 import random
 reload(sys)
-# sys.setdefaultencoding('utf-8')
+sys.setdefaultencoding('utf-8')
 from selenium import webdriver
 
 import heapq
@@ -1037,26 +1037,27 @@ def analyseData(stock_code,is_show = True):
     dividend_level = []
     value_table['dividend_level'] = dividend_level
 
-    for index in range(len_of_year - 1,-1,-1):
-        indexOfSingle = index
-        index = indexes_for_cal_zcfzb[index]
-        yyyymmdd = zcfzb_data['report_date'][index].split('-')
-        yyyy = yyyymmdd[0]
-        for single_dividend in dividend_data:
+    for index in range(len(dividend_data) - 1,-1,-1):
+        dividend_level.append(dividend_data[index])
+
+    indexes_of_dividend = []
+    for single_dividend in dividend_level:
+        for index in range(len_of_year):
+            indexOfSingle = index
+            index = indexes_for_cal_zcfzb[index]
+            yyyymmdd = zcfzb_data['report_date'][index].split('-')
+            yyyy = yyyymmdd[0]
             if single_dividend['year'] == yyyy:
-                dividend_level.append(single_dividend)
-                if len(dividend_level) >= 5:
-                    break
-        if len(dividend_level) >= 5:
-            break
+                indexes_of_dividend.append(index)
+        
 
     len_of_year = len(dividend_level)
-    for index in range(len_of_year - 1,-1,-1):#需要倒序
-        indexOfSingle = index
-        index = indexes_for_cal_zcfzb[index]
-        yyyymmdd = zcfzb_data['report_date'][index].split('-')
-        yyyy = yyyymmdd[0]
-        for single_dividend in dividend_data:
+    for single_dividend in dividend_level:
+        for index in range(len_of_year):
+            indexOfSingle = index
+            index = indexes_for_cal_zcfzb[index]
+            yyyymmdd = zcfzb_data['report_date'][index].split('-')
+            yyyy = yyyymmdd[0]
             if single_dividend['year'] == yyyy:
                 payment_days = payment_days + single_dividend['payment_day'].ljust(15)
     str_result = zhJust(u'类别      分红发放日    ') + payment_days
@@ -1068,12 +1069,12 @@ def analyseData(stock_code,is_show = True):
     
     str_result = zhJust(u'          每10股分红（元）',29)
 
-    for index in range(len_of_year - 1,-1,-1):#需要倒序
-        indexOfSingle = index
-        index = indexes_for_cal_zcfzb[index]
-        yyyymmdd = zcfzb_data['report_date'][index].split('-')
-        yyyy = yyyymmdd[0]
-        for single_dividend in dividend_data:
+    for single_dividend in dividend_level:
+        for index in range(len_of_year):
+            indexOfSingle = index
+            index = indexes_for_cal_zcfzb[index]
+            yyyymmdd = zcfzb_data['report_date'][index].split('-')
+            yyyy = yyyymmdd[0]
             if single_dividend['year'] == yyyy:
                 str_result = str_result + str(single_dividend['dividend']).ljust(15)
                 break
@@ -1082,12 +1083,13 @@ def analyseData(stock_code,is_show = True):
 
     str_result = zhJust(u'          分红率')
 
-    for index in range(len_of_year - 1,-1,-1):#需要倒序
-        indexOfSingle = index
-        index = indexes_for_cal_zcfzb[indexOfSingle]
-        yyyymmdd = zcfzb_data['report_date'][index].split('-')
-        yyyy = yyyymmdd[0]
-        for single_dividend in dividend_data:
+    for single_dividend in dividend_level:
+        for index in range(len_of_year):
+            indexOfSingle = index
+            index = indexes_for_cal_zcfzb[indexOfSingle]
+            yyyymmdd = zcfzb_data['report_date'][index].split('-')
+            yyyy = yyyymmdd[0]
+            
             if single_dividend['year'] == yyyy:
                 dividend = 0
                 if single_dividend['dividend'] != '--':
@@ -1095,8 +1097,8 @@ def analyseData(stock_code,is_show = True):
                 payIn_capital = zcfzb_data['payIn_capital'][index]
                 index = indexes_for_cal_lrb[indexOfSingle]
                 net_profit_company = lrb_data['net_profit_company'][index]
-                dividend_level[len_of_year - indexOfSingle - 1]['dividend_rate'] = utils.cal_dividend_rate(dividend,payIn_capital,net_profit_company)
-                str_result = str_result + str(dividend_level[len_of_year - indexOfSingle - 1]['dividend_rate']).ljust(15)
+                single_dividend['dividend_rate'] = utils.cal_dividend_rate(dividend,payIn_capital,net_profit_company)
+                str_result = str_result + str(single_dividend['dividend_rate']).ljust(15)
     if is_show:
         print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),str_result))
     
@@ -1386,15 +1388,22 @@ def cal_score(stock_code,end_year = 0):
 
     sum_dividend = 0
 
-    for dividend_level in value_table['dividend_level']:
+    dividend_count = 0
+    for index in range(len(value_table['dividend_level']) - 1,-1,-1):
+        dividend_level = value_table['dividend_level'][index]
+        if int(dividend_level['year']) > end_year:
+            continue
         dividend = 0
         if dividend_level['dividend'] != '--':
-            dividend = float(dividend_level['dividend'])
+            dividend = float(dividend_level['dividend_rate'])
         sum_dividend = sum_dividend + dividend
+        dividend_count = dividend_count + 1
+        if dividend_count >= 5:
+            break
     if len(value_table['dividend_level']) == 0:
         average_dividend = 0
     else:
-        average_dividend = sum_dividend / len(value_table['dividend_level'])
+        average_dividend = sum_dividend / dividend_count
     
     if average_dividend == 0:
         tatal_score = tatal_score + 0
@@ -2919,14 +2928,18 @@ def main():
     g_dividend_data = getDividendData(pro)
     # deleteFile()
     # downloadFinanceData()
-    # analyseAllData()
-    stock_code = '000651'
-    downloadTable(stock_code,'lrb')
-    downloadTable(stock_code,'zcfzb')
-    downloadTable(stock_code,'xjllb')
-    analyseData(stock_code = stock_code)
-    score = cal_score(stock_code,2018)
-    print(score)
+    analyseAllData()
+    # stock_code = '600519'
+    # downloadTable(stock_code,'lrb')
+    # downloadTable(stock_code,'zcfzb')
+    # downloadTable(stock_code,'xjllb')
+    # analyseData(stock_code = stock_code)
+    # score = cal_score(stock_code,2017)
+    # print(score)
+    # score = cal_score(stock_code,2018)
+    # print(score)
+    # score = cal_score(stock_code,2019)
+    # print(score)
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
     # getTopAllScore()
