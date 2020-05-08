@@ -19,7 +19,7 @@ import copy
 # import talib
 import random
 reload(sys)
-sys.setdefaultencoding('utf-8')
+# sys.setdefaultencoding('utf-8')
 from selenium import webdriver
 
 import heapq
@@ -1823,7 +1823,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
             fo.close()
     return topHps
 
-def getIndustryTop(is_save = True,number = 5):
+def getIndustryTop(is_save = True,number = 15):
     global g_business_data
 
     local_time = time.localtime()
@@ -2677,6 +2677,117 @@ def AnalyseDailyEMA():
                 fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
         fo.close()
 
+def findByCurrentDownAndUp():
+    global g_stock_codes
+    tops = getIndustryTop(is_save = False,number = 15)
+    # th = TopKHeap(2)
+    # th.push(Node('002770.SH','美的集团 家电',0, 'nyear'))
+    # th.push(Node('002377.SZ','美的集团 家电',0, 'nyear'))
+    # th.push(Node('300087.SZ','美的集团 家电',0, 'nyear'))
+    # tops = {'abc':th}
+    cur_year = 2020
+    score_year = 2019
+    # node_map = {}
+    down_node = []
+    up_node = []
+    industry_count = 0
+    for key in tops:
+        # stock_df = []
+        industry_count = industry_count + 1
+        count = 0
+        th = tops[key]
+        topHp = th.topk()
+        topHp.sort(key=sortHp,reverse = True)
+        # topHp = th
+        print('\n')
+        for node in topHp:
+            count = count + 1
+            # time.sleep(0.1)
+            stock_code = node.stock_code
+            name = node.stock_name
+
+            print('get qfq ' + stock_code + ' ' + name + ' count = ' + str(industry_count) + '..' + str(count))
+
+            if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+                cur_day = (datetime.datetime.now() - datetime.timedelta(days=400)).strftime('%Y%m%d')
+                df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
+                # print(df)
+                df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
+            else:
+                df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+
+            if len(df) < 100:
+                continue
+            df.index = range(0,len(df)) 
+            
+            cur_close = df.ix[0,'close']
+            biggest_close = 0
+            smallest_close = cur_close
+            for index in range(20):
+                daily_close = df.ix[index,'close']
+                if daily_close > biggest_close:
+                    biggest_close = daily_close
+                if daily_close < smallest_close:
+                    smallest_close = daily_close
+
+            if biggest_close / cur_close > 1.1:
+                node_copy = copy.deepcopy(node)
+                down_node.append(node_copy)
+
+            if smallest_close * 1.1 < cur_close:
+                node_copy = copy.deepcopy(node)
+                up_node.append(node_copy)
+
+    fo_down = open('product/industry_ema/daily_ema_down.txt','w')
+    fo_up = open('product/industry_ema/daily_ema_up.txt','w')
+    for node_index in range(len(down_node)):
+        node = down_node[node_index]
+        stock_code = node.stock_code
+        try:
+            csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+        except Exception as e:
+            print(stock_code + ' open wrong')
+            print(e)
+        value_table = json.load(csvfile)
+        last_year = int(value_table['last_year'])
+        if score_year == 0 or score_year > last_year:
+                score_year = last_year
+        len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+        start_index = len_year - 5 - last_year + score_year
+        cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+        roe = value_table['profitability']['return_on_equity'][start_index + 4]
+        net_profit = value_table['profitability']['net_profits'][start_index + 4]
+        R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+        r_profit_rate = 0
+        if net_profit != 0:
+            r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+        fo_down.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+    fo_down.close()
+
+    for node_index in range(len(up_node)):
+        node = up_node[node_index]
+        stock_code = node.stock_code
+        try:
+            csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+        except Exception as e:
+            print(stock_code + ' open wrong')
+            print(e)
+        value_table = json.load(csvfile)
+        last_year = int(value_table['last_year'])
+        if score_year == 0 or score_year > last_year:
+                score_year = last_year
+        len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+        start_index = len_year - 5 - last_year + score_year
+        cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+        roe = value_table['profitability']['return_on_equity'][start_index + 4]
+        net_profit = value_table['profitability']['net_profits'][start_index + 4]
+        R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+        r_profit_rate = 0
+        if net_profit != 0:
+            r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+        fo_up.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+    fo_up.close()
+
 def getValueFromJson(para_dic = {'stock_code':'300753','target_name':'return_on_equity','years':[2018,2017]}):#5年内
     # para_dic = {'stock_code':'300753','target_name':'return_on_equity','years':[2018,2017]}
     stock_code = para_dic['stock_code']
@@ -2805,16 +2916,17 @@ def main():
     # togDownloadAndUpdateDailyData()
     # g_dividend_data = getDividendData(pro,g_business_data)
     # g_dividend_data = getAllotmentData(pro,g_business_data)
-    # g_dividend_data = getDividendData(pro)
+    g_dividend_data = getDividendData(pro)
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
-    # stock_code = '002770'
-    # downloadTable(stock_code,'lrb')
-    # downloadTable(stock_code,'zcfzb')
-    # downloadTable(stock_code,'xjllb')
-    # analyseData(stock_code = stock_code)
-    # score = cal_score(stock_code,2017)
+    stock_code = '000651'
+    downloadTable(stock_code,'lrb')
+    downloadTable(stock_code,'zcfzb')
+    downloadTable(stock_code,'xjllb')
+    analyseData(stock_code = stock_code)
+    score = cal_score(stock_code,2018)
+    print(score)
     # print('score: ' + str(score))
     #print time.strftime("%Y-%m-%d", time.localtime()) 
     # getTopAllScore()
@@ -2829,10 +2941,12 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    AnalyseDailyEMA()
+    # AnalyseDailyEMA()
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
+    # findByCurrentDownAndUp()
+    # getTop()
     
 
 if __name__ == '__main__':
