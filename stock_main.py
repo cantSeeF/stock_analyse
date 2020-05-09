@@ -1403,6 +1403,8 @@ def cal_score(stock_code,end_year = 0):
     if len(value_table['dividend_level']) == 0:
         average_dividend = 0
     else:
+        if dividend_count == 0:
+            dividend_count = 1
         average_dividend = sum_dividend / dividend_count
     
     if average_dividend == 0:
