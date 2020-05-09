@@ -1394,7 +1394,7 @@ def cal_score(stock_code,end_year = 0):
         if int(dividend_level['year']) > end_year:
             continue
         dividend = 0
-        if dividend_level['dividend'] != '--':
+        if dividend_level.has_key('dividend_rate'):
             dividend = float(dividend_level['dividend_rate'])
         sum_dividend = sum_dividend + dividend
         dividend_count = dividend_count + 1
@@ -1621,16 +1621,25 @@ def getDividendData(pro,business_data = []):
     return dividend_dic
 
 def crawlStockValueFromWeb():
+    #估值
+    #算法，n年(一般是10)净利润增长平均值，预测未来m年(10)(1、一般公司不超过6年；2、优质公司不超过9年；)净利润，
+    #净利润合计除以流通股本就是合理买入估值
     tops = getTop(is_save = False,rule_names = ['more05','less05'],number=500)
     value_dic = {}
     count = 0
     browser = webdriver.Chrome()
+    url = 'https://www.touzid.com/company/dnp.html#/'
+    browser.get(url)
     fo = open('product/estimate_value' + '.txt','w')
+    already_got = True
     for key in tops:
         for node in tops[key]:
             count = count + 1
             stock_code = node.stock_code[7:9] + node.stock_code[0:6]
-
+            if stock_code == 'SH603288':
+                already_got = False
+            if already_got:
+                continue
             if value_dic.has_key(stock_code):
                 print(stock_code + ' has got')
                 continue
@@ -1638,9 +1647,9 @@ def crawlStockValueFromWeb():
                 try:
                     url = 'https://www.touzid.com/company/dnp.html#/' + stock_code
                     browser.get(url)
-                    browser.execute_script('var box = document.getElementsByClassName("el-popup-parent--hidden");\
-                        box[0].style.height = "100%";\
-                        box[0].style.overflow = "scroll";')
+                    # browser.execute_script('var box = document.getElementsByClassName("el-popup-parent--hidden");\
+                    #     box[0].style.height = "100%";\
+                    #     box[0].style.overflow = "scroll";')
                     
                     element = browser.find_elements_by_class_name('cell')
                     buy_price = 0
@@ -1663,9 +1672,9 @@ def crawlStockValueFromWeb():
                         fo.write(value_str + '\n')
                     break
                 except Exception as e:
-                    print(e)
+                    # print(e)
                     time.sleep(1.0)
-                    continue
+                    break
     fo.close()
 
 def getAllotmentData(pro,business_data = []):
@@ -2928,7 +2937,7 @@ def main():
     g_dividend_data = getDividendData(pro)
     # deleteFile()
     # downloadFinanceData()
-    analyseAllData()
+    # analyseAllData()
     # stock_code = '600519'
     # downloadTable(stock_code,'lrb')
     # downloadTable(stock_code,'zcfzb')
@@ -2955,7 +2964,7 @@ def main():
     # analyseMACDRate()
     # getQFQTSData() 
     # AnalyseDailyEMA()
-    # crawlStockValueFromWeb()
+    crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
     # findByCurrentDownAndUp()
