@@ -2899,6 +2899,52 @@ def analyseROE():
             # print(year_price)
     fo.close()
 
+def calculateTrends():
+    start_date = (datetime.datetime.now() - datetime.timedelta(days=150)).strftime('%Y%m%d')
+    while 1:
+        stock_code = raw_input("stock code:")
+        if stock_code[0] == '6':
+            stock_code = stock_code[0:6] + '.SH'
+        else:
+            stock_code = stock_code[0:6] + '.SZ'
+        df = getQFQTSData(stock_code,freq = 'D',start_date = start_date)
+        # df.index = range(0,len(df))
+        # df.index = df.trade_date
+        # print(df)
+        while 1:
+            date1 = raw_input("point first date:")[0:8]
+            date2 = raw_input("point second date:")[0:8]
+            index1 = -1
+            index2 = -1
+            low1 = 0
+            low2 = 0
+            for index in range(90):
+                date = df.ix[index,'trade_date']
+                if date == date1:
+                    index1 = index
+                    low1 = df.ix[index,'low']
+                    print('low1 is ' + str(low1))
+                elif date == date2:
+                    index2 = index
+                    low2 = df.ix[index,'low']
+                    print('low2 is ' + str(low2))
+                
+                if index1 != -1 and index2 != -1:
+                    break
+
+            if index1 == -1 or index2 == -1:
+                print('input wrong')
+            else:
+                a = (low2 - low1) / (index2 - index1)
+                b = low1 - a * index1
+                cur_day_price = a * -1 + b
+                stop_loss_price = cur_day_price * 0.97
+                cur_day_price = round(cur_day_price,2)
+                stop_loss_price = round(stop_loss_price,2)
+                print('current day price is ' + str(cur_day_price))
+                print('stop loss price is ' + str(stop_loss_price))
+                print('\n')
+                break
 
 def updateAll():
     def mkdir(path):
@@ -2936,7 +2982,7 @@ def main():
     # togDownloadAndUpdateDailyData()
     # g_dividend_data = getDividendData(pro,g_business_data)
     # g_dividend_data = getAllotmentData(pro,g_business_data)
-    g_dividend_data = getDividendData(pro)
+    # g_dividend_data = getDividendData(pro)
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
@@ -2966,11 +3012,12 @@ def main():
     # analyseMACDRate()
     # getQFQTSData() 
     # AnalyseDailyEMA()
-    crawlStockValueFromWeb()
+    # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
     # findByCurrentDownAndUp()
     # getTop()
+    calculateTrends()
     
 
 if __name__ == '__main__':
