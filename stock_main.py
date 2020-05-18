@@ -2632,7 +2632,7 @@ def AnalyseDailyEMA():
                 node_map = node_maps[node_index]
                 start_index = node_index * 5
                 up_count = 0
-                for index in range(40):
+                for index in range(61):
                     diff = pd_diff[index + start_index]
                     if diff > 0:
                         up_count = up_count + 1
@@ -2641,9 +2641,9 @@ def AnalyseDailyEMA():
                         break
                 if up_count > 0:
                     up_count_str = str(up_count) + '天'
-                    if up_count >= 40:
-                        up_count_str = '40+天'
-                        up_count = 40
+                    if up_count >= 60:
+                        up_count_str = '60+天'
+                        up_count = 60
                     close = df.ix[start_index,'close']
                     close_date = str(df.ix[start_index,'trade_date'])
                     last_close = df.ix[start_index + up_count,'close']
@@ -3011,13 +3011,13 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    # AnalyseDailyEMA()
+    AnalyseDailyEMA()
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
     # findByCurrentDownAndUp()
     # getTop()
-    calculateTrends()
+    # calculateTrends()
     
 
 if __name__ == '__main__':
