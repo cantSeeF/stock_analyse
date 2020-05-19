@@ -61,6 +61,8 @@ class Node:
     def add_remarks(self,add_remark):
         self._remarks = self._remarks + add_remark
 
+    def getDict(self):
+        return {'stock_code':self._stock_code,'stock_name':self._stock_name,'score':self._score,'remarks':self._remarks}
 
     def __str__(self):
 		return '%s  %s  %s %s' %(self._stock_code,self._stock_name,self._score,self._remarks)
@@ -2571,94 +2573,116 @@ def togDownloadAndUpdateDailyData():
     downloadAndUpdateDailyData(stock_codes)
 
 def AnalyseDailyEMA():
+    node_maps = []
+    is_node_maps_init = False
+    if os.path.exists('product/industry_ema/node_maps.json'):
+        csvfile = open('product/industry_ema/node_maps.json', 'r')
+        node_maps0 = json.load(csvfile)
+
+        for node_index in range(len(node_maps0)):
+            node_map0 = node_maps0[node_index]
+            node_map = {}
+            for key in node_map0:
+                nodes = node_map0[key]
+                node_map[key] = []
+                for node_dict in nodes:
+                    node = Node(node_dict['stock_code'],node_dict['stock_name'],node_dict['score'],node_dict['remarks'])
+                    node_map[key].append(node)
+            node_maps.append(node_map)
+
+        is_node_maps_init = True
+        csvfile.close()
     global g_stock_codes
-    tops = getIndustryTop(is_save = False,number = 15)
-    # th = TopKHeap(2)
-    # th.push(Node('002770.SH','美的集团 家电',0, 'nyear'))
-    # th.push(Node('002377.SZ','美的集团 家电',0, 'nyear'))
-    # th.push(Node('300087.SZ','美的集团 家电',0, 'nyear'))
-    # tops = {'abc':th}
     cur_year = 2020
     score_year = 2019
-    # node_map = {}
-    node_maps = [{},{},{},{},{},{},{},{},{},{}]
-    date_list = []
-    industry_count = 0
-    for key in tops:
-        # stock_df = []
-        industry_count = industry_count + 1
-        count = 0
-        th = tops[key]
-        topHp = th.topk()
-        topHp.sort(key=sortHp,reverse = True)
-        # topHp = th
-        print('\n')
-        for node in topHp:
-            count = count + 1
-            # time.sleep(0.1)
-            stock_code = node.stock_code
-            name = node.stock_name
+    if is_node_maps_init == False:
+        node_maps = [{},{},{},{},{},{},{},{},{},{},{},{}]
+        tops = getIndustryTop(is_save = False,number = 15)
+        # th = TopKHeap(2)
+        # th.push(Node('002770.SH','美的集团 家电',0, 'nyear'))
+        # th.push(Node('002377.SZ','美的集团 家电',0, 'nyear'))
+        # th.push(Node('300087.SZ','美的集团 家电',0, 'nyear'))
+        # tops = {'abc':th}
+        # node_map = {}
+        industry_count = 0
+        limit_count = 1000
+        for key in tops:
+            # stock_df = []
+            industry_count = industry_count + 1
+            if industry_count > limit_count:
+                break
+            count = 0
+            th = tops[key]
+            topHp = th.topk()
+            topHp.sort(key=sortHp,reverse = True)
+            # topHp = th
+            print('\n')
+            for node in topHp:
+                count = count + 1
+                # time.sleep(0.1)
+                stock_code = node.stock_code
+                name = node.stock_name
 
-            print('get qfq ' + stock_code + ' ' + name + ' count = ' + str(industry_count) + '..' + str(count))
+                print('get qfq ' + stock_code + ' ' + name + ' count = ' + str(industry_count) + '..' + str(count))
 
-            if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
-                cur_day = (datetime.datetime.now() - datetime.timedelta(days=400)).strftime('%Y%m%d')
-                df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
+                if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+                    cur_day = (datetime.datetime.now() - datetime.timedelta(days=400)).strftime('%Y%m%d')
+                    df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
+                    # print(df)
+                    df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
+                else:
+                    df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+
+                if len(df) < 100:
+                    continue
+                df = df.iloc[::-1]
+                df.index = range(0,len(df)) 
+                # df.reindex(index=df['trade_date'])
+                # df=df.sort_values(by = 'trade_date',ascending=True)
                 # print(df)
-                df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
-            else:
-                df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+                fast_line = get_EMA(df,14)
 
-            if len(df) < 100:
-                continue
-            df = df.iloc[::-1]
-            df.index = range(0,len(df)) 
-            # df.reindex(index=df['trade_date'])
-            # df=df.sort_values(by = 'trade_date',ascending=True)
-            # print(df)
-            fast_line = get_EMA(df,14)
+                slow_line = get_EMA(df,60)
+                pd_diff = pd.Series(fast_line)-pd.Series(slow_line)
+                pd_diff = pd_diff.iloc[::-1]
+                pd_diff.index = range(0,len(pd_diff)) 
+                # print(pd_diff)
+                df = df.iloc[::-1]
+                df.index = range(0,len(df)) 
+                # print(df)
+                
 
-            slow_line = get_EMA(df,60)
-            pd_diff = pd.Series(fast_line)-pd.Series(slow_line)
-            pd_diff = pd_diff.iloc[::-1]
-            pd_diff.index = range(0,len(pd_diff)) 
-            # print(pd_diff)
-            df = df.iloc[::-1]
-            df.index = range(0,len(df)) 
-            # print(df)
-            
-
-            for node_index in range(len(node_maps)):
-                node_map = node_maps[node_index]
-                start_index = node_index * 5
-                up_count = 0
-                for index in range(61):
-                    diff = pd_diff[index + start_index]
-                    if diff > 0:
-                        up_count = up_count + 1
-                    else:
-                        # if up_count == 0:
-                        break
-                if up_count > 0:
-                    up_count_str = str(up_count) + '天'
-                    if up_count >= 60:
-                        up_count_str = '60+天'
-                        up_count = 60
-                    close = df.ix[start_index,'close']
-                    close_date = str(df.ix[start_index,'trade_date'])
-                    last_close = df.ix[start_index + up_count,'close']
-                    last_date = str(df.ix[start_index + up_count,'trade_date'])
-                    up_count_str = up_count_str + ' ' + close_date + ':' + str(round(close,2)) + ' ' + last_date +  ':' + str(round(last_close,2))
-                    # print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),stock_code + ' ' + name + ' ' + up_count_str + '\n'))
-                    # print(up_count_str)
-                    node_copy = copy.deepcopy(node)
-                    node_copy.add_remarks(' ' + up_count_str)
-                    industry_name = g_stock_codes[stock_code[0:6]]['industry']
-                    if not node_map.has_key(industry_name):
-                        node_map[industry_name] = []
-                    useful_node = node_map[industry_name]
-                    useful_node.append(node_copy)
-
+                for node_index in range(len(node_maps)):
+                    node_map = node_maps[node_index]
+                    start_index = node_index * 5
+                    up_count = 0
+                    for index in range(61):
+                        diff = pd_diff[index + start_index]
+                        if diff > 0:
+                            up_count = up_count + 1
+                        else:
+                            # if up_count == 0:
+                            break
+                    if up_count > 0:
+                        up_count_str = str(up_count) + '天'
+                        if up_count >= 60:
+                            up_count_str = '60+天'
+                            up_count = 60
+                        close = df.ix[start_index,'close']
+                        close_date = str(df.ix[start_index,'trade_date'])
+                        last_close = df.ix[start_index + up_count,'close']
+                        last_date = str(df.ix[start_index + up_count,'trade_date'])
+                        up_count_str = up_count_str + ' ' + close_date + ':' + str(round(close,2)) + ' ' + last_date +  ':' + str(round(last_close,2))
+                        # print("\033[0;{0};40m{1}\033[0m".format(getFontColor(),stock_code + ' ' + name + ' ' + up_count_str + '\n'))
+                        # print(up_count_str)
+                        node_copy = copy.deepcopy(node)
+                        node_copy.add_remarks(' ' + up_count_str)
+                        industry_name = g_stock_codes[stock_code[0:6]]['industry']
+                        if not node_map.has_key(industry_name):
+                            node_map[industry_name] = []
+                        useful_node = node_map[industry_name]
+                        useful_node.append(node_copy)
+  
     for node_index in range(len(node_maps)):
         node_map = node_maps[node_index]
         cur_day = (datetime.datetime.now() - datetime.timedelta(days=node_index * 7)).strftime('%Y%m%d')
@@ -2696,6 +2720,50 @@ def AnalyseDailyEMA():
 
                 fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
         fo.close()
+
+    industry_counts = {}
+    for node_index in range(len(node_maps)):
+        node_map = node_maps[node_index]
+        for key in node_map:
+            count = len(node_map[key])
+            if not industry_counts.has_key(key):
+                industry_counts[key] = [0,0,0,0,0,0,0,0,0,0,0,0]
+            industry_counts[key][11 - node_index] = count
+    industry_key_list = []
+    for key in industry_counts:
+        industry_key_list.append({'industry_name':key,'industry_list':industry_counts[key]})
+    industry_key_list.sort(key=sortIndustryCount,reverse = True)
+    fo = open('product/industry_ema/industry_counts.txt','w')
+    for industry in industry_key_list:
+        counts = industry['industry_list']
+        if counts[len(counts) - 1] <= 2:
+            break
+        fo.write(industry['industry_name'] + ':' + ' ')
+        for count in counts:
+            fo.write(str(count) + ' ')
+        fo.write('\n')
+    fo.close()
+
+    # node_maps 用json保存起来
+    if is_node_maps_init == False:
+        node_maps2 = []
+        for node_index in range(len(node_maps)):
+            node_map2 = {}
+            node_map = node_maps[node_index]
+            for key in node_map:
+                nodes = node_map[key]
+                node_map2[key] = []
+                for node in nodes:
+                    node_dict = node.getDict()
+                    node_map2[key].append(node_dict)
+            node_maps2.append(node_map2)
+        json_values = json.dumps(node_maps2)
+        fw = open('product/industry_ema/node_maps.json', 'w')
+        fw.write(json_values)
+        fw.close()
+
+def sortIndustryCount(industry):
+    return industry['industry_list'][len(industry['industry_list']) - 1]
 
 def findByCurrentDownAndUp():
     global g_stock_codes
