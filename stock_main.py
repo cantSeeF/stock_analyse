@@ -2733,7 +2733,8 @@ def AnalyseDailyEMA():
     for key in industry_counts:
         industry_key_list.append({'industry_name':key,'industry_list':industry_counts[key]})
     industry_key_list.sort(key=sortIndustryCount,reverse = True)
-    fo = open('product/industry_ema/industry_counts.txt','w')
+    cur_day = time.strftime("%Y%m%d", time.localtime()) 
+    fo = open('product/industry_ema/industry_counts_' + cur_day + '.txt','w')
     for industry in industry_key_list:
         counts = industry['industry_list']
         if counts[len(counts) - 1] <= 2:
