@@ -1756,6 +1756,21 @@ def initGStockCodes():
 def sortHp(node):
     return node.score
 
+def getIndustryCount():
+    industry_map = {}
+    #count = 1
+    for stock_dic in g_business_data:
+        stock_code = stock_dic['ts_code']
+        if stock_code[0:3] == '688':
+            continue
+        
+        list_year = int(stock_dic['list_date'][0:4])
+        if not industry_map.has_key(stock_dic['industry']):
+            industry_map[stock_dic['industry']] = 0
+        industry_map[stock_dic['industry']] = industry_map[stock_dic['industry']] + 1
+        
+    return industry_map
+
 def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','less01'],number = 500):
     global g_business_data
 
@@ -2084,6 +2099,9 @@ def getGroupAllStock(industry):
     findStr = []
     all_count = len(g_business_data)
     count = 0
+    cur_year = 2020
+    score_year = 2019
+    fo = open('product/' + industry + '.txt','w')
     for stock_dic in g_business_data:
         count = count + 1
         stock_code = stock_dic['ts_code'][0:6]
@@ -2091,31 +2109,34 @@ def getGroupAllStock(industry):
             continue
         if stock_dic['industry'] != industry:
             continue
-        file_path = 'base_data/daily/' + stock_code + '.csv'
-        if not os.path.exists(file_path):
-            continue
-        try:
-            df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
-        except Exception as e:
-            continue
-        # dateStr = str(timestamp.year) + '-' + str(timestamp.month) + '-' + str(timestamp.day)
-        chg = df.iloc[0].at['chg']
-        lclose = df.iloc[0].at['lclose']
+        # file_path = 'base_data/daily/' + stock_code + '.csv'
+        # if not os.path.exists(file_path):
+        #     continue
+        # try:
+        #     df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+        # except Exception as e:
+        #     continue
+        # # dateStr = str(timestamp.year) + '-' + str(timestamp.month) + '-' + str(timestamp.day)
+        # chg = df.iloc[0].at['pct_chg']
+        # lclose = df.iloc[0].at['close']
 
-        if chg == 'None' or lclose == 'None':
-            continue
-        rate = round( float(chg) / float(lclose) * 10000) / 100
-        score = cal_score(stock_code = stock_code)
-        findStr.append({'code':stock_dic['ts_code'],'name':stock_dic['name'],'rate':rate,'score':score})
+        # if chg == 'None' or lclose == 'None':
+        #     continue
+        # rate = round( float(chg) / float(lclose) * 10000) / 100
+        # score = cal_score(stock_code = stock_code)
+        # findStr.append({'code':stock_dic['ts_code'],'name':stock_dic['name'],'rate':rate,'score':score})
 
-        work_rate = round(float(count) / all_count * 1000)
-        print ' ' + str(count) + ' ' + str(work_rate / 10) + '%\r',
+        # work_rate = round(float(count) / all_count * 1000)
+        # print ' ' + str(count) + ' ' + str(work_rate / 10) + '%\r',
 
-    findStr.sort(key = lambda elem: elem['score'], reverse = True)
-    fo = open('product/' + industry + '.txt','w')
-    for detail in findStr:
-        string = detail['code'] + ' ' + detail['name'] + ' ' + str(detail['rate']) + '% ' + str(detail['score']) + '\n'
-        fo.write(string)
+    # findStr.sort(key = lambda elem: elem['score'], reverse = True)
+    # fo = open('product/' + industry + '.txt','w')
+    # for detail in findStr:
+    #     string = detail['code'] + ' ' + detail['name'] + ' ' + str(detail['rate']) + '% ' + str(detail['score']) + '\n'
+        list_year = int(stock_dic['list_date'][0:4])
+        score = cal_score(stock_code[0:6],score_year)
+        node = Node(stock_dic['ts_code'],stock_dic['name'] + ' ' + stock_dic['industry'],score,str(cur_year - list_year + 1) + 'year' )
+        fo.write(str(node) + '\n')
     fo.close()
 
 def get_EMA(df,N,close_name = 'close'):
@@ -2575,8 +2596,9 @@ def togDownloadAndUpdateDailyData():
 def AnalyseDailyEMA():
     node_maps = []
     is_node_maps_init = False
-    if os.path.exists('product/industry_ema/node_maps.json'):
-        csvfile = open('product/industry_ema/node_maps.json', 'r')
+    cur_day = datetime.datetime.now().strftime('%Y%m%d')
+    if os.path.exists('product/industry_ema/node_maps' + cur_day + '.json'):
+        csvfile = open('product/industry_ema/node_maps' + cur_day + '.json')
         node_maps0 = json.load(csvfile)
 
         for node_index in range(len(node_maps0)):
@@ -2721,17 +2743,18 @@ def AnalyseDailyEMA():
                 fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
         fo.close()
 
-    industry_counts = {}
+    industry_ema_up_counts_by_day = {}
+    industry_counts = getIndustryCount()
     for node_index in range(len(node_maps)):
         node_map = node_maps[node_index]
         for key in node_map:
             count = len(node_map[key])
-            if not industry_counts.has_key(key):
-                industry_counts[key] = [0,0,0,0,0,0,0,0,0,0,0,0]
-            industry_counts[key][11 - node_index] = count
+            if not industry_ema_up_counts_by_day.has_key(key):
+                industry_ema_up_counts_by_day[key] = [0,0,0,0,0,0,0,0,0,0,0,0]
+            industry_ema_up_counts_by_day[key][11 - node_index] = count
     industry_key_list = []
-    for key in industry_counts:
-        industry_key_list.append({'industry_name':key,'industry_list':industry_counts[key]})
+    for key in industry_ema_up_counts_by_day:
+        industry_key_list.append({'industry_name':key,'industry_list':industry_ema_up_counts_by_day[key]})
     industry_key_list.sort(key=sortIndustryCount,reverse = True)
     cur_day = time.strftime("%Y%m%d", time.localtime()) 
     fo = open('product/industry_ema/industry_counts_' + cur_day + '.txt','w')
@@ -2739,7 +2762,7 @@ def AnalyseDailyEMA():
         counts = industry['industry_list']
         if counts[len(counts) - 1] <= 2:
             break
-        fo.write(industry['industry_name'] + ':' + ' ')
+        fo.write(industry['industry_name'] + str(industry_counts[industry['industry_name']]) +':' + ' ')
         for count in counts:
             fo.write(str(count) + ' ')
         fo.write('\n')
@@ -2759,7 +2782,7 @@ def AnalyseDailyEMA():
                     node_map2[key].append(node_dict)
             node_maps2.append(node_map2)
         json_values = json.dumps(node_maps2)
-        fw = open('product/industry_ema/node_maps.json', 'w')
+        fw = open('product/industry_ema/node_maps' + cur_day + '.json', 'w')
         fw.write(json_values)
         fw.close()
 
@@ -3055,11 +3078,11 @@ def main():
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
-    # stock_code = '600519'
+    # stock_code = '600074'
     # downloadTable(stock_code,'lrb')
     # downloadTable(stock_code,'zcfzb')
     # downloadTable(stock_code,'xjllb')
-    # analyseData(stock_code = stock_code)
+    # analyseData(stock_code = stock_code,is_show = False)
     # score = cal_score(stock_code,2017)
     # print(score)
     # score = cal_score(stock_code,2018)
@@ -3073,14 +3096,14 @@ def main():
     #getAllCate()
     # pandasTest('002770')
     # getDaysBestGroup()
-    # getGroupAllStock(u'商品城')
+    getGroupAllStock(u'影视音像')
     # getMonthMACD()
     # findStockByProfit()
     # findBigMACD()
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    AnalyseDailyEMA()
+    # AnalyseDailyEMA()
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
