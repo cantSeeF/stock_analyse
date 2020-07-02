@@ -18,6 +18,7 @@ import sys
 import copy
 # import talib
 import random
+import xlwt
 reload(sys)
 sys.setdefaultencoding('utf-8')
 from selenium import webdriver
@@ -2758,15 +2759,26 @@ def AnalyseDailyEMA():
     industry_key_list.sort(key=sortIndustryCount,reverse = True)
     cur_day = time.strftime("%Y%m%d", time.localtime()) 
     fo = open('product/industry_ema/industry_counts_' + cur_day + '.txt','w')
+
+    workbook = xlwt.Workbook(encoding='utf-8')       #新建工作簿
+    sheet1 = workbook.add_sheet(u'industry_count')          #新建sheet
+    row = 0
+    low = 0
     for industry in industry_key_list:
         counts = industry['industry_list']
         if counts[len(counts) - 1] <= 2:
             break
+        sheet1.write(row,low,industry['industry_name'] + str(industry_counts[industry['industry_name']]))#第1行第1列数据
         fo.write(industry['industry_name'] + str(industry_counts[industry['industry_name']]) +':' + ' ')
         for count in counts:
+            low = low + 1
+            sheet1.write(row,low,str(count)) 
             fo.write(str(count) + ' ')
         fo.write('\n')
+        low = 0
+        row = row + 1
     fo.close()
+    workbook.save('product/industry_ema/industry_counts_' + cur_day + '.xls')   #保存
 
     # node_maps 用json保存起来
     if is_node_maps_init == False:
@@ -3096,14 +3108,14 @@ def main():
     #getAllCate()
     # pandasTest('002770')
     # getDaysBestGroup()
-    getGroupAllStock(u'影视音像')
+    # getGroupAllStock(u'影视音像')
     # getMonthMACD()
     # findStockByProfit()
     # findBigMACD()
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    # AnalyseDailyEMA()
+    AnalyseDailyEMA()  #open office 打开
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
