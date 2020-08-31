@@ -1,4 +1,5 @@
 #coding=utf-8
+import pandas as pd
 
 #资产负债比率(占总资产%)
 def cal_cash_rate(money_funds,settlement_provision,disburse_funds,transactional_finacial_asset,derivative_finacial_asset,tatol_assets):
@@ -181,3 +182,49 @@ def cal_cash_reinvestment_rate(net_flow_from_op,paid_for_distribution,tatol_asse
 def cal_dividend_rate(dividend,payIn_capital,net_profit_company):
    # = 分红总额 / 属总公司净利率  =  ( 分红金额 b * 总股本 zcb95 ) / 10  / (所属年度)归属于母公司所有者的净利润 lrb41
    return round(float(dividend * payIn_capital) / net_profit_company / 10 * 100,1)
+
+
+
+
+
+
+
+
+
+
+def get_EMA(df,N,close_name = 'close'):
+   for i in range(len(df)):
+      if i==0:
+         df.loc[i,'ema']=df.loc[i,close_name]
+#            df.ix[i,'ema']=0
+      if i>0:
+         df.ix[i,'ema']=(2*df.ix[i,close_name]+(N-1)*df.ix[i-1,'ema'])/(N+1)
+   ema=list(df['ema'])
+   return ema
+
+def get_MACD(df,short=12,long=26,M=9):
+   # MACD 似乎数量只要够就行了，不要太多
+   a= get_EMA(df,short)
+   b= get_EMA(df,long)
+   diff = pd.Series(a)-pd.Series(b)
+   for i in range(len(df)):
+      df.ix[i,'diff'] = diff[i]
+   # print(df['diff'])
+   for i in range(len(df)):
+      if i==0:
+         df.ix[i,'dea']=df.ix[i,'diff']
+      if i>0:
+         df.ix[i,'dea']=((M-1)*df.ix[i-1,'dea']+2*df.ix[i,'diff'])/(M+1)
+   df['macd']=2*(df['diff']-df['dea'])
+   return df
+
+def get_KDJ(df):
+   low_list = df['low'].rolling(9, min_periods=9).min()
+   low_list.fillna(value = df['low'].expanding().min(), inplace = True)
+   high_list = df['high'].rolling(9, min_periods=9).max()
+   high_list.fillna(value = df['high'].expanding().max(), inplace = True)
+   rsv = (df['close'] - low_list) / (high_list - low_list) * 100
+
+   df['K'] = pd.DataFrame(rsv).ewm(com=2).mean()
+   df['D'] = df['K'].ewm(com=2).mean()
+   df['J'] = 3 * df['K'] - 2 * df['D']

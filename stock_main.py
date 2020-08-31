@@ -51,6 +51,10 @@ class Node:
     def score(self):
         return self._score
 
+    @score.setter
+    def score(self,score):
+        self._score = score
+
     @property
     def stock_name(self):
         return self._stock_name
@@ -2140,32 +2144,6 @@ def getGroupAllStock(industry):
         fo.write(str(node) + '\n')
     fo.close()
 
-def get_EMA(df,N,close_name = 'close'):
-    for i in range(len(df)):
-        if i==0:
-            df.loc[i,'ema']=df.loc[i,close_name]
-#            df.ix[i,'ema']=0
-        if i>0:
-            df.ix[i,'ema']=(2*df.ix[i,close_name]+(N-1)*df.ix[i-1,'ema'])/(N+1)
-    ema=list(df['ema'])
-    return ema
- 
-def get_MACD(df,short=12,long=26,M=9):
-    # MACD 似乎数量只要够就行了，不要太多
-    a=get_EMA(df,short)
-    b=get_EMA(df,long)
-    diff = pd.Series(a)-pd.Series(b)
-    for i in range(len(df)):
-        df.ix[i,'diff'] = diff[i]
-    # print(df['diff'])
-    for i in range(len(df)):
-        if i==0:
-            df.ix[i,'dea']=df.ix[i,'diff']
-        if i>0:
-            df.ix[i,'dea']=((M-1)*df.ix[i-1,'dea']+2*df.ix[i,'diff'])/(M+1)
-    df['macd']=2*(df['diff']-df['dea'])
-    return df
-
 def getStockDataFrame(stock_code):
     file_path = 'base_data/daily/' + stock_code + '.csv'
     df = None
@@ -2176,7 +2154,7 @@ def getStockDataFrame(stock_code):
 def getDayMACD(stock_code = '300803'):
     df = getStockDataFrame(stock_code)
     df = df.iloc[::-1]
-    df = get_MACD(df)
+    df = utils.get_MACD(df)
     # dif,dea,bar = talib.MACD(df.tclose.values)
     # # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
     return df[['diff','dea','macd']]
@@ -2188,7 +2166,7 @@ def getMonthMACD(stock_code = '000333'):
     print(df_period.head())
     # print(df['2019-11'])
     # print(df['2016':'2017'].head(2))
-    # df = get_MACD(df)
+    # df = utils.get_MACD(df)
     
 
 def getAllCate():
@@ -2249,7 +2227,7 @@ def findStockBySu():
             # df.reindex(index=df['trade_date'])
             # df=df.sort_values(by = 'trade_date',ascending=True)
             # print(df)
-            df = get_MACD(df)
+            df = utils.get_MACD(df)
             # dif,dea,bar = talib.MACD(df.tclose.values)
             # # dif,dea,bar = talib.MACD(df.chg.values,fastperiod=12,slowperiod=26,signalperiod=9)
             df = df[['close','trade_date','diff','dea','macd']].tail(month_count + 2)
@@ -2369,7 +2347,7 @@ def findStockBySuByFirstRate():
                 continue
             df = df.iloc[::-1]
             df.index = range(0,len(df)) 
-            df = get_MACD(df)
+            df = utils.get_MACD(df)
             # print(df)
             df.index = range(0,len(df)) 
             first_red = False
@@ -2449,7 +2427,7 @@ def findBigMACD():
             continue
         df = df.iloc[::-1]
         df.index = range(0,len(df)) 
-        df = get_MACD(df)
+        df = utils.get_MACD(df)
         df = df.iloc[::-1]
         macd_add = 0
         macd_count = 0
@@ -2649,7 +2627,7 @@ def AnalyseDailyEMA():
                 print('get qfq ' + stock_code + ' ' + name + ' count = ' + str(industry_count) + '..' + str(count))
 
                 if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
-                    cur_day = (datetime.datetime.now() - datetime.timedelta(days=400)).strftime('%Y%m%d')
+                    cur_day = (datetime.datetime.now() - datetime.timedelta(days=101)).strftime('%Y%m%d')
                     df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
                     # print(df)
                     df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
@@ -2663,9 +2641,9 @@ def AnalyseDailyEMA():
                 # df.reindex(index=df['trade_date'])
                 # df=df.sort_values(by = 'trade_date',ascending=True)
                 # print(df)
-                fast_line = get_EMA(df,14)
+                fast_line = utils.get_EMA(df,14)
 
-                slow_line = get_EMA(df,60)
+                slow_line = utils.get_EMA(df,60)
                 pd_diff = pd.Series(fast_line)-pd.Series(slow_line)
                 pd_diff = pd_diff.iloc[::-1]
                 pd_diff.index = range(0,len(pd_diff)) 
@@ -2768,7 +2746,9 @@ def AnalyseDailyEMA():
         counts = industry['industry_list']
         if counts[len(counts) - 1] <= 2:
             break
-        sheet1.write(row,low,industry['industry_name'] + str(industry_counts[industry['industry_name']]))#第1行第1列数据
+        sheet1.write(row,low,industry['industry_name'])#第1行第1列数据
+        low = low + 1
+        sheet1.write(row,low,'all' + str(industry_counts[industry['industry_name']]))
         fo.write(industry['industry_name'] + str(industry_counts[industry['industry_name']]) +':' + ' ')
         for count in counts:
             low = low + 1
@@ -2833,7 +2813,7 @@ def findByCurrentDownAndUp():
             print('get qfq ' + stock_code + ' ' + name + ' count = ' + str(industry_count) + '..' + str(count))
 
             if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
-                cur_day = (datetime.datetime.now() - datetime.timedelta(days=400)).strftime('%Y%m%d')
+                cur_day = (datetime.datetime.now() - datetime.timedelta(days=101)).strftime('%Y%m%d')
                 df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
                 # print(df)
                 df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
@@ -3050,6 +3030,72 @@ def calculateTrends():
                 print('\n')
                 break
 
+def getKDJTop():
+    stock_code = '002415.SZ'
+    cur_day = (datetime.datetime.now() - datetime.timedelta(days=101)).strftime('%Y%m%d')
+    df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
+    df = df.iloc[::-1]
+    utils.get_KDJ(df)
+
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=500)
+    count = 0
+
+    cur_year = 2020
+    score_year = 2019
+
+    th = TopKHeap(100)
+    #count = 1
+    for key in tops:
+        for node in tops[key]:
+            stock_code = node.stock_code
+            df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
+            df = df.iloc[::-1]
+            utils.get_KDJ(df)
+            
+            score = - round(df.ix[0,'D'],2)
+            node.score = score
+            th.push(node)
+
+    topHps = {}
+    th = tops[rule_name]
+    topHp = th.topk()
+    topHp.sort(key=sortHp,reverse = True)
+    topHps[rule_name] = topHp
+    if is_save:
+        fo = open('product/best_long_term_shares_all_' + str(score_year) + rule_name + '.txt','w')
+
+        for node in topHp:
+            stock_code = node.stock_code
+            try:
+                csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+            except Exception as e:
+                print(stock_code + ' open wrong')
+                print(e)
+            value_table = json.load(csvfile)
+            last_year = int(value_table['last_year'])
+            if score_year == 0 or score_year > last_year:
+                score_year = last_year
+            len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+            start_index = len_year - 5 - last_year + score_year
+
+            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+            roe = value_table['profitability']['return_on_equity'][start_index + 4]
+            net_profit = value_table['profitability']['net_profits'][start_index + 4]
+            R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+            r_profit_rate = 0
+            if net_profit != 0:
+                r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+            fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+        print(rule_name + ' has done')
+        fo.close()
+    return topHps
+
+
+    
+    
+    print(df)
+
+
 def updateAll():
     def mkdir(path):
         folder = os.path.exists(path)
@@ -3115,14 +3161,14 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    AnalyseDailyEMA()  #open office 打开
+    # AnalyseDailyEMA()  #open office 打开
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
     # findByCurrentDownAndUp()
     # getTop()
     # calculateTrends()
-    
+    getKDJTop()
 
 if __name__ == '__main__':
     main()
