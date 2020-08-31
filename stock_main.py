@@ -187,14 +187,14 @@ def downloadAndUpdateDailyDataThread(codes):
                 else:
                     market_type = 0
 
-                file_path = 'base_data/daily/' + stock_code[0:6] + '.csv'
+                file_path = 'base_data/day/' + stock_code[0:6] + '.csv'
                 exist_file = False
                 df_exist = None
                 if os.path.exists(file_path):#change start_time
                     # break
                     exist_file = True
                     try:
-                        df_exist = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+                        df_exist = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
                         # print(df_exist.head(1))
                         # print(df_exist.head(1).index)
                         # print(df_exist.head(1).index[0])
@@ -203,7 +203,7 @@ def downloadAndUpdateDailyDataThread(codes):
                         first_time = datetime.date(first_date.year,first_date.month,first_date.day)
                         start_time = (first_time + datetime.timedelta(days = 1)).strftime('%Y%m%d')
                     except Exception as e:
-                        os.remove('base_data/daily/' + stock_code[0:6] + '.csv')
+                        os.remove('base_data/day/' + stock_code[0:6] + '.csv')
                         exist_file = False
                         # print(e)
 
@@ -214,18 +214,18 @@ def downloadAndUpdateDailyDataThread(codes):
                 a_utf_8 = a_utf_8.replace(head_str,head_str_e,1)
                 a_utf_8 = a_utf_8.replace('\'','')
 
-                with open('base_data/daily/' + stock_code[0:6] + '_temp.csv','wb') as f:
+                with open('base_data/day/' + stock_code[0:6] + '_temp.csv','wb') as f:
                     f.write(a_utf_8)
                     f.close()
-                df_cur = pd.read_csv('base_data/daily/' + stock_code[0:6] + '_temp.csv', parse_dates=True, index_col=0)
+                df_cur = pd.read_csv('base_data/day/' + stock_code[0:6] + '_temp.csv', parse_dates=True, index_col=0)
                 df_cur.drop(['stock_code','stock_name'],axis = 1,inplace=True)
                 if exist_file:
                     df_cur = df_cur.append(df_exist) 
                     # os.rename('name1','name2')
-                df_cur.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
-                os.remove('base_data/daily/' + stock_code[0:6] + '_temp.csv')
+                df_cur.to_csv('base_data/day/' + stock_code[0:6] + '.csv')
+                os.remove('base_data/day/' + stock_code[0:6] + '_temp.csv')
 
-                print(stock_code + ' daily ' + str(count) + '/' + str(all_count))
+                print(stock_code + ' day ' + str(count) + '/' + str(all_count))
                 time.sleep(0.5)
                 break
             except Exception as e:
@@ -240,7 +240,7 @@ def downloadAndUpdateDailyDataThread(codes):
     return
 
 def pandasTest(stock_code = '600006'):
-    tsla_df_load = pd.read_csv('base_data/daily/' + stock_code + '.csv', parse_dates=True, index_col=0)
+    tsla_df_load = pd.read_csv('base_data/day/' + stock_code + '.csv', parse_dates=True, index_col=0)
     # print('tsla_df_load.head():\n')
     print(tsla_df_load['vaturnover'].head())
     print(tsla_df_load[['stock_code','vaturnover','tclose']].head())
@@ -2046,11 +2046,11 @@ def getDaysBestGroup(begin = '20200110',end = '20200110'):
         if stock_code[0:3] == '688':
             continue
 
-        file_path = 'base_data/daily/' + stock_code + '.csv'
+        file_path = 'base_data/day/' + stock_code + '.csv'
         if not os.path.exists(file_path):
             continue
         try:
-            df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+            df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
         except Exception as e:
             continue
         # df.shape[0] get cow length
@@ -2114,11 +2114,11 @@ def getGroupAllStock(industry):
             continue
         if stock_dic['industry'] != industry:
             continue
-        # file_path = 'base_data/daily/' + stock_code + '.csv'
+        # file_path = 'base_data/day/' + stock_code + '.csv'
         # if not os.path.exists(file_path):
         #     continue
         # try:
-        #     df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+        #     df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
         # except Exception as e:
         #     continue
         # # dateStr = str(timestamp.year) + '-' + str(timestamp.month) + '-' + str(timestamp.day)
@@ -2145,10 +2145,10 @@ def getGroupAllStock(industry):
     fo.close()
 
 def getStockDataFrame(stock_code):
-    file_path = 'base_data/daily/' + stock_code + '.csv'
+    file_path = 'base_data/day/' + stock_code + '.csv'
     df = None
     if os.path.exists(file_path):
-        df = pd.read_csv('base_data/daily/' + stock_code + '.csv', parse_dates=True, index_col=0)
+        df = pd.read_csv('base_data/day/' + stock_code + '.csv', parse_dates=True, index_col=0)
     return df
 
 def getDayMACD(stock_code = '300803'):
@@ -2596,6 +2596,7 @@ def AnalyseDailyEMA():
     global g_stock_codes
     cur_year = 2020
     score_year = 2019
+    cur_day = (datetime.datetime.now() - datetime.timedelta(days=101)).strftime('%Y%m%d')
     if is_node_maps_init == False:
         node_maps = [{},{},{},{},{},{},{},{},{},{},{},{}]
         tops = getIndustryTop(is_save = False,number = 15)
@@ -2626,13 +2627,12 @@ def AnalyseDailyEMA():
 
                 print('get qfq ' + stock_code + ' ' + name + ' count = ' + str(industry_count) + '..' + str(count))
 
-                if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
-                    cur_day = (datetime.datetime.now() - datetime.timedelta(days=101)).strftime('%Y%m%d')
+                if not os.path.exists('base_data/day/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
                     df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
                     # print(df)
-                    df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
+                    df.to_csv('base_data/day/' + stock_code[0:6] + '.csv')
                 else:
-                    df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+                    df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
 
                 if len(df) < 100:
                     continue
@@ -2812,13 +2812,13 @@ def findByCurrentDownAndUp():
 
             print('get qfq ' + stock_code + ' ' + name + ' count = ' + str(industry_count) + '..' + str(count))
 
-            if not os.path.exists('base_data/daily/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+            if not os.path.exists('base_data/day/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
                 cur_day = (datetime.datetime.now() - datetime.timedelta(days=101)).strftime('%Y%m%d')
                 df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
                 # print(df)
-                df.to_csv('base_data/daily/' + stock_code[0:6] + '.csv')
+                df.to_csv('base_data/day/' + stock_code[0:6] + '.csv')
             else:
-                df = pd.read_csv('base_data/daily/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+                df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
 
             if len(df) < 100:
                 continue
@@ -3030,70 +3030,76 @@ def calculateTrends():
                 print('\n')
                 break
 
-def getKDJTop():
-    stock_code = '002415.SZ'
-    cur_day = (datetime.datetime.now() - datetime.timedelta(days=101)).strftime('%Y%m%d')
-    df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
-    df = df.iloc[::-1]
-    utils.get_KDJ(df)
+def getKDJTop(dwm = 'day'):
+    stock_code = '000651.SZ'
+    if dwm == 'week':
+        timedelta = datetime.timedelta(weeks=101)
+        freq = 'W'
+    else:
+        timedelta = datetime.timedelta(days=101)
+        freq = 'D'
 
-    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=500)
+    cur_day = (datetime.datetime.now() - timedelta).strftime('%Y%m%d')
+    # df = getQFQTSData(stock_code,freq = freq,start_date = cur_day)
+    # df = df.iloc[::-1]
+    # utils.get_KDJ(df)
+    # print(df)
+
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=250)
     count = 0
-
     cur_year = 2020
     score_year = 2019
 
-    th = TopKHeap(100)
+    th = TopKHeap(250)
     #count = 1
     for key in tops:
         for node in tops[key]:
             stock_code = node.stock_code
-            df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
+
+            if not os.path.exists('base_data/' + dwm + '/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+                df = getQFQTSData(stock_code,freq = freq,start_date = cur_day)
+                # print(df)
+                df.to_csv('base_data/' + dwm + '/' + stock_code[0:6] + '.csv')
+            else:
+                df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+
             df = df.iloc[::-1]
             utils.get_KDJ(df)
+            # print(df)
             
             score = - round(df.ix[0,'D'],2)
+            node.add_remarks(' score = ' + str(node.score) + ' KDJ_D = ' + str(-score))
             node.score = score
+            print(str(node))
             th.push(node)
 
-    topHps = {}
-    th = tops[rule_name]
     topHp = th.topk()
     topHp.sort(key=sortHp,reverse = True)
-    topHps[rule_name] = topHp
-    if is_save:
-        fo = open('product/best_long_term_shares_all_' + str(score_year) + rule_name + '.txt','w')
 
-        for node in topHp:
-            stock_code = node.stock_code
-            try:
-                csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
-            except Exception as e:
-                print(stock_code + ' open wrong')
-                print(e)
-            value_table = json.load(csvfile)
-            last_year = int(value_table['last_year'])
-            if score_year == 0 or score_year > last_year:
-                score_year = last_year
-            len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
-            start_index = len_year - 5 - last_year + score_year
+    fo = open('product/short_term_KDJ_' + dwm + datetime.datetime.now().strftime('%Y%m%d') + '.txt','w')
+    for node in topHp:
+        stock_code = node.stock_code
+        try:
+            csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+        except Exception as e:
+            print(stock_code + ' open wrong')
+            print(e)
+        value_table = json.load(csvfile)
+        last_year = int(value_table['last_year'])
+        if score_year == 0 or score_year > last_year:
+            score_year = last_year
+        len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+        start_index = len_year - 5 - last_year + score_year
 
-            cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
-            roe = value_table['profitability']['return_on_equity'][start_index + 4]
-            net_profit = value_table['profitability']['net_profits'][start_index + 4]
-            R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
-            r_profit_rate = 0
-            if net_profit != 0:
-                r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
-            fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
-        print(rule_name + ' has done')
-        fo.close()
-    return topHps
-
-
-    
-    
-    print(df)
+        cash_rate = value_table['assetsAndLiabilities']['cash_rate'][start_index + 4]
+        roe = value_table['profitability']['return_on_equity'][start_index + 4]
+        net_profit = value_table['profitability']['net_profits'][start_index + 4]
+        R_and_D_exp = value_table['profitability']['R_and_D_exps'][start_index + 4]
+        r_profit_rate = 0
+        if net_profit != 0:
+            r_profit_rate = round(float(R_and_D_exp) / net_profit * 100,1)
+        fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
+    fo.close()
 
 
 def updateAll():
@@ -3106,7 +3112,7 @@ def updateAll():
             print (path + " is exist")
 		
     mkdir('base_data\\business')
-    mkdir('base_data\\daily')
+    mkdir('base_data\\day')
     mkdir('base_data\\dividend')
     mkdir('base_data\\value')
     mkdir('product')
@@ -3169,6 +3175,7 @@ def main():
     # getTop()
     # calculateTrends()
     getKDJTop()
+    getKDJTop(dwm = 'week')
 
 if __name__ == '__main__':
     main()
