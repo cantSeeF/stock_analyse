@@ -3039,7 +3039,8 @@ def getKDJTop(dwm = 'day'):
         timedelta = datetime.timedelta(days=101)
         freq = 'D'
 
-    cur_day = (datetime.datetime.now() - timedelta).strftime('%Y%m%d')
+    cur_day = time.strftime("%Y%m%d", time.localtime()) 
+    start_day = (datetime.datetime.now() - timedelta).strftime('%Y%m%d')
     # df = getQFQTSData(stock_code,freq = freq,start_date = cur_day)
     # df = df.iloc[::-1]
     # utils.get_KDJ(df)
@@ -3049,34 +3050,38 @@ def getKDJTop(dwm = 'day'):
     count = 0
     cur_year = 2020
     score_year = 2019
+    day_time = ''
 
-    th = TopKHeap(250)
+    th = TopKHeap(100)
     #count = 1
     for key in tops:
         for node in tops[key]:
             stock_code = node.stock_code
 
             if not os.path.exists('base_data/' + dwm + '/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
-                df = getQFQTSData(stock_code,freq = freq,start_date = cur_day)
+                df = getQFQTSData(stock_code,freq = freq,start_date = start_day)
                 # print(df)
                 df.to_csv('base_data/' + dwm + '/' + stock_code[0:6] + '.csv')
             else:
-                df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+                df = pd.read_csv('base_data/' + dwm + '/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
 
             df = df.iloc[::-1]
             utils.get_KDJ(df)
             # print(df)
             
             score = - round(df.ix[0,'D'],2)
-            node.add_remarks(' score = ' + str(node.score) + ' KDJ_D = ' + str(-score))
+            day_time = df.ix[0,'trade_date']
+            node.add_remarks(' score = ' + str(node.score) + ' KDJ_D = ' + str(-score) + '  ' +str(day_time))
             node.score = score
-            print(str(node))
+            # print(str(node).decode('gbk').encode('utf-8'))
+            strnode = str(node).decode('utf-8')
+            print strnode
             th.push(node)
 
     topHp = th.topk()
     topHp.sort(key=sortHp,reverse = True)
 
-    fo = open('product/short_term_KDJ_' + dwm + datetime.datetime.now().strftime('%Y%m%d') + '.txt','w')
+    fo = open('product/kdj/short_term_KDJ_' + dwm + cur_day + '.txt','w')
     for node in topHp:
         stock_code = node.stock_code
         try:
