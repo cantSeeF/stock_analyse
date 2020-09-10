@@ -2194,7 +2194,7 @@ def findStockBySu():
     # get stock macd
     # get stocks which month data show status-A
     # show that stocks
-    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=500)
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=400)
     # tops = {'abc':[Node('300753.SZ','美的集团 家电',0, 'nyear')]}
     month_count = 15
     useful_node_string_up = []
@@ -2596,7 +2596,7 @@ def AnalyseDailyEMA():
     global g_stock_codes
     cur_year = 2020
     score_year = 2019
-    cur_day = (datetime.datetime.now() - datetime.timedelta(days=101)).strftime('%Y%m%d')
+    cur_day = (datetime.datetime.now() - datetime.timedelta(days=150)).strftime('%Y%m%d')
     if is_node_maps_init == False:
         node_maps = [{},{},{},{},{},{},{},{},{},{},{},{}]
         tops = getIndustryTop(is_save = False,number = 15)
@@ -2634,7 +2634,8 @@ def AnalyseDailyEMA():
                 else:
                     df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
 
-                if len(df) < 100:
+                # print(df)
+                if len(df) < 80:
                     continue
                 df = df.iloc[::-1]
                 df.index = range(0,len(df)) 
@@ -3033,10 +3034,10 @@ def calculateTrends():
 def getKDJTop(dwm = 'day'):
     stock_code = '000651.SZ'
     if dwm == 'week':
-        timedelta = datetime.timedelta(weeks=101)
+        timedelta = datetime.timedelta(weeks=150)
         freq = 'W'
     else:
-        timedelta = datetime.timedelta(days=101)
+        timedelta = datetime.timedelta(days=150)
         freq = 'D'
 
     cur_day = time.strftime("%Y%m%d", time.localtime()) 
@@ -3052,7 +3053,7 @@ def getKDJTop(dwm = 'day'):
     score_year = 2019
     day_time = ''
 
-    th = TopKHeap(100)
+    th = TopKHeap(250)
     #count = 1
     for key in tops:
         for node in tops[key]:
@@ -3179,7 +3180,7 @@ def main():
     # findByCurrentDownAndUp()
     # getTop()
     # calculateTrends()
-    getKDJTop()
+    # getKDJTop()
     getKDJTop(dwm = 'week')
 
 if __name__ == '__main__':
