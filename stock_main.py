@@ -262,11 +262,11 @@ def downloadFinanceThread(stock_head,talbeName):
             continue
         downloadTable(stock_code,talbeName)
 
-def downloadTable(stock_code,table_name):
+def downloadTable(stock_code,table_name,is_update = False):
     file_path = 'base_data/' + table_name + stock_code + '.csv'
     # print(file_path)
     try:
-        if os.path.exists(file_path):
+        if os.path.exists(file_path) and is_update == False:
             return
     except Exception as e:
         print(e)
@@ -1799,7 +1799,13 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
 
             # if not (stock_dic['industry'] == u'食品'):
             #     continue
-            if stock_dic['industry'] == u'银行' or stock_dic['industry'] == u'全国地产' or stock_dic['industry'] == u'房产服务' or stock_dic['industry'] == u'区域地产':
+            if stock_dic['industry'] == u'银行' or \
+                stock_dic['industry'] == u'全国地产' or \
+                stock_dic['industry'] == u'房产服务' or \
+                stock_dic['industry'] == u'园区开发' or \
+                stock_dic['industry'] == u'火力发电' or \
+                stock_dic['industry'] == u'煤炭开采' or \
+                stock_dic['industry'] == u'区域地产':
                 continue
             num = 0
             if rule_name[-2] == '0':
@@ -3107,6 +3113,66 @@ def getKDJTop(dwm = 'day'):
         fo.write(str(node) + ' 现金占比' + str(cash_rate) + '%' + ' roe' + str(roe) + '% 净利' + str(net_profit) + ' 研发占比' + str(r_profit_rate) + '%\n')
     fo.close()
 
+def getOperatingMarginOfSafetyTop():
+    global g_business_data
+
+    local_time = time.localtime()
+    cur_year = 2020
+    score_year = 2019
+    
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=300)
+    th = TopKHeap(300)
+    for key in tops:
+        for node in tops[key]:
+            stock_code = node.stock_code
+            try:
+                csvfile = open('base_data/value/' + stock_code[0:6] + '.json', 'r')
+            except Exception as e:
+                print(stock_code + ' open wrong')
+                print(e)
+            value_table = json.load(csvfile)
+            last_year = int(value_table['last_year'])
+            if last_year < 2019:
+                continue
+                # updateBaseData(stock_code[0:6])
+            len_year = len(value_table['assetsAndLiabilities']['cash_rate'])
+            all_operating_margin_of_safety = 0
+            add_times = 0
+            is_valid = True
+            for index in range(len_year - 1,-1,-1):
+                if value_table['profitability']['operating_margin_of_safety'][index] >= 100:
+                    is_valid = False
+                all_operating_margin_of_safety += value_table['profitability']['operating_margin_of_safety'][index]
+                add_times += 1
+                if add_times >= 5:
+                    break
+            if is_valid == False:
+                continue
+            score = round(all_operating_margin_of_safety / add_times,2)
+            node.add_remarks(' score = ' + str(node.score) + ' safety = ' + str(score) + '  ')
+            node.score = score
+            th.push(node)
+            
+    fo = open('product/top_operating_margin_of_safety_' + str(score_year) + '.txt','w')
+
+    topHp = th.topk()
+    topHp.sort(key=sortHp,reverse = True)
+    for node in topHp:
+        stock_code = node.stock_code
+        fo.write(str(node) + '\n')
+        # print(node.name + ' has done')
+
+
+    fo.close()
+    # return topHps
+
+def updateBaseData(stock_code):
+    # stock_code = '600035'
+    print 'update ' + stock_code
+    downloadTable(stock_code,'lrb',True)
+    downloadTable(stock_code,'zcfzb',True)
+    downloadTable(stock_code,'xjllb',True)
+    analyseData(stock_code = stock_code,is_show = False)
 
 def updateAll():
     def mkdir(path):
@@ -3148,11 +3214,8 @@ def main():
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
-    # stock_code = '600074'
-    # downloadTable(stock_code,'lrb')
-    # downloadTable(stock_code,'zcfzb')
-    # downloadTable(stock_code,'xjllb')
-    # analyseData(stock_code = stock_code,is_show = False)
+    # stock_code = '600035'
+    #updateBaseData(stock_code)
     # score = cal_score(stock_code,2017)
     # print(score)
     # score = cal_score(stock_code,2018)
@@ -3180,8 +3243,9 @@ def main():
     # findByCurrentDownAndUp()
     # getTop()
     # calculateTrends()
-    # getKDJTop()
+    getKDJTop()
     getKDJTop(dwm = 'week')
+    # getOperatingMarginOfSafetyTop()
 
 if __name__ == '__main__':
     main()
