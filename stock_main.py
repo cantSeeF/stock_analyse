@@ -1138,6 +1138,7 @@ def analyseAllData():
 
 
 def cal_score(stock_code,end_year = 0):
+    year_count = 5
     try:
         csvfile = open('base_data/value/' + stock_code + '.json', 'r')
     except Exception as e:
@@ -1152,10 +1153,10 @@ def cal_score(stock_code,end_year = 0):
     if end_year > last_year:
         return 0
     len_year = len(value_table['profitability']['return_on_equity'])
-    if len_year < 5 + last_year - end_year:
+    if len_year < year_count + last_year - end_year:
         return 0
     
-    start_index = len_year - 5 - last_year + end_year
+    start_index = len_year - year_count - last_year + end_year
 
     tatal_score = 0
     #股东权益报酬率(%) RoE
@@ -1342,23 +1343,24 @@ def cal_score(stock_code,end_year = 0):
     net_profits = value_table['profitability']['net_profits']
 
     #len_net_profits = len(net_profits)
+    start_index2 = start_index + year_count - 5
     if sum_net_profit != 0:
-        if net_profits[start_index + 4] > net_profits[start_index + 3]:
+        if net_profits[start_index2 + 4] > net_profits[start_index2 + 3]:
             tatal_score = tatal_score + 30
         else:
             tatal_score = tatal_score - 30
 
-        if net_profits[start_index + 3] > net_profits[start_index + 2]:
+        if net_profits[start_index2 + 3] > net_profits[start_index2 + 2]:
             tatal_score = tatal_score + 25
         else:
             tatal_score = tatal_score - 25
 
-        if net_profits[start_index + 2] > net_profits[start_index + 1]:
+        if net_profits[start_index2 + 2] > net_profits[start_index2 + 1]:
             tatal_score = tatal_score + 20
         else:
             tatal_score = tatal_score - 20
 
-        if net_profits[start_index + 1] > net_profits[start_index]:
+        if net_profits[start_index2 + 1] > net_profits[start_index2]:
             tatal_score = tatal_score + 15
         else:
             tatal_score = tatal_score - 15
@@ -1373,22 +1375,22 @@ def cal_score(stock_code,end_year = 0):
         sum_net_flow_from_op = sum_net_flow_from_op + net_flow_from_op  
     
     if sum_net_flow_from_op != 0:
-        if sum_net_flow_from_ops[start_index + 4] > sum_net_flow_from_ops[start_index + 3]:
+        if sum_net_flow_from_ops[start_index2 + 4] > sum_net_flow_from_ops[start_index2 + 3]:
             tatal_score = tatal_score + 30
         else:
             tatal_score = tatal_score - 30
 
-        if sum_net_flow_from_ops[start_index + 3] > sum_net_flow_from_ops[start_index + 2]:
+        if sum_net_flow_from_ops[start_index2 + 3] > sum_net_flow_from_ops[start_index2 + 2]:
             tatal_score = tatal_score + 25
         else:
             tatal_score = tatal_score - 25
 
-        if sum_net_flow_from_ops[start_index + 2] > sum_net_flow_from_ops[start_index + 1]:
+        if sum_net_flow_from_ops[start_index2 + 2] > sum_net_flow_from_ops[start_index2 + 1]:
             tatal_score = tatal_score + 20
         else:
             tatal_score = tatal_score - 20
 
-        if sum_net_flow_from_ops[start_index + 1] > sum_net_flow_from_ops[start_index + 0]:
+        if sum_net_flow_from_ops[start_index2 + 1] > sum_net_flow_from_ops[start_index2 + 0]:
             tatal_score = tatal_score + 15
         else:
             tatal_score = tatal_score - 15
@@ -1405,7 +1407,7 @@ def cal_score(stock_code,end_year = 0):
             dividend = float(dividend_level['dividend_rate'])
         sum_dividend = sum_dividend + dividend
         dividend_count = dividend_count + 1
-        if dividend_count >= 5:
+        if dividend_count >= year_count:
             break
     if len(value_table['dividend_level']) == 0:
         average_dividend = 0
@@ -2188,10 +2190,11 @@ def getQFQTSData(stock='000333.SZ',freq = 'M',start_date = '20100101'):
     cur_day = time.strftime("%Y%m%d", time.localtime()) 
     stock_code = stock
     df = ts.pro_bar(ts_code=stock_code,adj='qfq',freq=freq, start_date=start_date, end_date=cur_day)
-    # print(df)
-    df = df.dropna(axis=0, how='any')
-    # print(df)
-        # time.sleep(0.1)
+
+    if type(df) == pd.core.frame.DataFrame:
+        df = df.dropna(axis=0, how='any')
+        # print(df)
+            # time.sleep(0.1)
     return df
 
 def findStockBySu():
@@ -2607,8 +2610,8 @@ def AnalyseDailyEMA():
         node_maps = [{},{},{},{},{},{},{},{},{},{},{},{}]
         tops = getIndustryTop(is_save = False,number = 15)
         # th = TopKHeap(2)
-        # th.push(Node('002770.SH','美的集团 家电',0, 'nyear'))
-        # th.push(Node('002377.SZ','美的集团 家电',0, 'nyear'))
+        # th.push(Node('600074.SH','美的集团 家电',0, 'nyear'))
+        # th.push(Node('002594.SZ','美的集团 家电',0, 'nyear'))
         # th.push(Node('300087.SZ','美的集团 家电',0, 'nyear'))
         # tops = {'abc':th}
         # node_map = {}
@@ -2635,8 +2638,12 @@ def AnalyseDailyEMA():
 
                 if not os.path.exists('base_data/day/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
                     df = getQFQTSData(stock_code,freq = 'D',start_date = cur_day)
-                    # print(df)
-                    df.to_csv('base_data/day/' + stock_code[0:6] + '.csv')
+                    if type(df) == pd.core.frame.DataFrame:
+                        # print(df)
+                        df.to_csv('base_data/day/' + stock_code[0:6] + '.csv')
+                    else:
+                        print(stock_code + 'not exist')
+                        continue
                 else:
                     df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
 
@@ -3214,8 +3221,9 @@ def main():
     # deleteFile()
     # downloadFinanceData()
     # analyseAllData()
-    # stock_code = '600035'
-    #updateBaseData(stock_code)
+    # stock_code = '300783'
+    # updateBaseData(stock_code)
+    # analyseData(stock_code = stock_code,is_show = True)
     # score = cal_score(stock_code,2017)
     # print(score)
     # score = cal_score(stock_code,2018)
@@ -3236,15 +3244,15 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    # AnalyseDailyEMA()  #open office 打开
+    AnalyseDailyEMA()  #open office 打开
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
     # findByCurrentDownAndUp()
     # getTop()
     # calculateTrends()
-    getKDJTop()
-    getKDJTop(dwm = 'week')
+    # getKDJTop()
+    # getKDJTop(dwm = 'week')
     # getOperatingMarginOfSafetyTop()
 
 if __name__ == '__main__':
