@@ -2329,8 +2329,84 @@ def findStockBySu():
                 str_up = '** ' + str_up
             fo.write(str_up)
     print('done')
+    fo.close()
 
+def findEmaAndMavol():
+    # get top
+    # get stock qfq data
+    # get stock ema 14,60
+    # get stock mavol 35,135
+    # get compare
+    # show that stocks
+    tops = getTop(is_save = False,rule_names = ['more05','less05'],number=400)
+    # tops = {'abc':[Node('603156.SH','美的集团 家电',0, 'nyear')]}
+    start_date = (datetime.datetime.now() - datetime.timedelta(days=240)).strftime('%Y%m%d')
+    # useful_node_string_up = []
+    useful_nodes = []
+    for key in tops:
+        # stock_df = []
+        count = 0
+        finded_count = 0
+        for node_init in tops[key]:
+            count = count + 1
 
+            stock_code = node_init.stock_code
+
+            print('count = ' + str(count) + ' finded_count = ' + str(finded_count))
+            print('get qfq ' + stock_code + ' ' + node_init.stock_name  + '\n')
+
+            if not os.path.exists('base_data/day/' + stock_code[0:6] + '.csv'):                   #判断是否存在文件夹如果不存在则创建为文件夹
+                df = getQFQTSData(stock_code,freq = 'D',start_date = start_date)
+                if type(df) == pd.core.frame.DataFrame:
+                    # print(df)
+                    df.to_csv('base_data/day/' + stock_code[0:6] + '.csv')
+                else:
+                    print(stock_code + 'not exist')
+                    continue
+            else:
+                df = pd.read_csv('base_data/day/' + stock_code[0:6] + '.csv', parse_dates=True, index_col=0)
+
+            # print('len(df) is ' + str(len(df)))
+            if len(df) < 140:
+                continue
+            df = df.iloc[::-1]
+            df.index = range(0,len(df)) 
+            fast_line = utils.get_EMA(df,14)
+            slow_line = utils.get_EMA(df,60)
+            pd_diff = pd.Series(fast_line)-pd.Series(slow_line)
+            pd_diff = pd_diff.iloc[::-1]
+            pd_diff.index = range(0,len(pd_diff)) 
+
+            # df = df.iloc[::-1]
+            # # print(df)
+            # df.index = range(0,len(df))
+            # print(pd_diff)
+            
+            maybyReverse = False
+            for cur_day in range(10):
+                diff = pd_diff[cur_day]
+                if diff > 0:
+                    maybyReverse = True
+                else:
+                    if maybyReverse:
+                        fast_line_vol = utils.get_EMA(df,35,'vol')
+                        slow_line_vol = utils.get_EMA(df,135,'vol')
+                        pd_diff_vol = pd.Series(fast_line_vol)-pd.Series(slow_line_vol)
+
+                        # print(pd_diff_vol)
+                        # print(len(pd_diff_vol))
+                        if pd_diff_vol[len(pd_diff_vol) -1] < 0:
+                            useful_nodes.append(node_init)
+                            finded_count = finded_count + 1
+                        break
+
+    fo = open('product/ema_and_mavol.txt','w')
+
+    for node in useful_nodes:
+        stock_code = node.stock_code
+        str_up = str(node) + '\n'
+        fo.write(str_up)
+    print('done')
     fo.close()
 
 def findStockBySuByFirstRate():
@@ -3244,7 +3320,9 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    AnalyseDailyEMA()  #open office 打开
+    # AnalyseDailyEMA()  #open office 打开
+    # findOneDayReversal()
+    findEmaAndMavol()
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()
