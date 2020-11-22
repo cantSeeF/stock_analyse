@@ -106,7 +106,7 @@ class TopKHeap(object):
 g_start_stock = 0
 g_end_stock = 1000
 
-g_stock_head_codes = ['000','001','002','003','300','600','601','603']#600最多，可以加线程
+g_stock_head_codes = ['000','001','002','003','300','600','601','603','605']#600最多，可以加线程
 g_table_names = ['lrb','zcfzb','xjllb']
 g_stock_codes = {}
 g_business_data = []
@@ -3322,7 +3322,7 @@ def main():
     # getQFQTSData() 
     # AnalyseDailyEMA()  #open office 打开
     # findOneDayReversal()
-    findEmaAndMavol()
+    # findEmaAndMavol()
     # crawlStockValueFromWeb()
     # getValueFromJson()
     # analyseROE()

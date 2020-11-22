@@ -132,7 +132,7 @@ def cal_return_on_total_assets(net_profit_company,total_liability_and_equity):
 
 def cal_gross_profit_margin(all_op_in,all_cost):
    #毛利率 =（营业收入 - 营业成本 - 研发费用 - 营业税金及附加）/ 营业收入
-   if all_cost == 0:
+   if all_cost == 0 or all_op_in == 0:
       return 0
    return round(float(all_op_in - all_cost) / all_op_in * 100,1)
 
