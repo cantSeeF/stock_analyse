@@ -228,3 +228,8 @@ def get_KDJ(df):
    df['K'] = pd.DataFrame(rsv).ewm(com=2).mean()
    df['D'] = df['K'].ewm(com=2).mean()
    df['J'] = 3 * df['K'] - 2 * df['D']
+
+
+def big_number_to_str(big_number):
+   number_str = str(int(big_number / 1000000)) + '百万'
+   return number_str

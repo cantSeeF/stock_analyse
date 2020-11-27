@@ -2659,11 +2659,16 @@ def togDownloadAndUpdateDailyData():
 
 def AnalyseDailyEMA():
     node_maps = []
+    industry_amount_daily_total = {}
+    industry_volume_daily_total = {}
     is_node_maps_init = False
     cur_day = datetime.datetime.now().strftime('%Y%m%d')
     if os.path.exists('product/industry_ema/node_maps' + cur_day + '.json'):
         csvfile = open('product/industry_ema/node_maps' + cur_day + '.json')
-        node_maps0 = json.load(csvfile)
+        json_map = json.load(csvfile)
+        node_maps0 = json_map['node_maps']
+        industry_amount_daily_total = json_map['industry_amount']
+        industry_volume_daily_total = json_map['industry_volume']
 
         for node_index in range(len(node_maps0)):
             node_map0 = node_maps0[node_index]
@@ -2726,6 +2731,16 @@ def AnalyseDailyEMA():
                 # print(df)
                 if len(df) < 80:
                     continue
+
+                industry_name = g_stock_codes[stock_code[0:6]]['industry']
+                if not industry_amount_daily_total.has_key(industry_name):
+                    industry_amount_daily_total[industry_name] = 0
+                industry_amount_daily_total[industry_name] = industry_amount_daily_total[industry_name] + df.ix[0,'amount'] * 1000
+
+                if not industry_volume_daily_total.has_key(industry_name):
+                    industry_volume_daily_total[industry_name] = 0
+                industry_volume_daily_total[industry_name] = industry_volume_daily_total[industry_name] + df.ix[0,'vol']
+
                 df = df.iloc[::-1]
                 df.index = range(0,len(df)) 
                 # df.reindex(index=df['trade_date'])
@@ -2768,7 +2783,6 @@ def AnalyseDailyEMA():
                         # print(up_count_str)
                         node_copy = copy.deepcopy(node)
                         node_copy.add_remarks(' ' + up_count_str)
-                        industry_name = g_stock_codes[stock_code[0:6]]['industry']
                         if not node_map.has_key(industry_name):
                             node_map[industry_name] = []
                         useful_node = node_map[industry_name]
@@ -2834,8 +2848,8 @@ def AnalyseDailyEMA():
     low = 0
     for industry in industry_key_list:
         counts = industry['industry_list']
-        if counts[len(counts) - 1] <= 2:
-            break
+        # if counts[len(counts) - 1] <= 2:
+        #     break
         sheet1.write(row,low,industry['industry_name'])#第1行第1列数据
         low = low + 1
         sheet1.write(row,low,'all' + str(industry_counts[industry['industry_name']]))
@@ -2844,6 +2858,9 @@ def AnalyseDailyEMA():
             low = low + 1
             sheet1.write(row,low,str(count)) 
             fo.write(str(count) + ' ')
+        amount_total_str = utils.big_number_to_str(industry_amount_daily_total[industry['industry_name']])
+        vol_total_str = str(int(industry_volume_daily_total[industry['industry_name']] / 10000)) + '万'
+        fo.write('               vol ' + vol_total_str + ' amount ' + amount_total_str)
         fo.write('\n')
         low = 0
         row = row + 1
@@ -2852,7 +2869,11 @@ def AnalyseDailyEMA():
 
     # node_maps 用json保存起来
     if is_node_maps_init == False:
+        json_str = {}
         node_maps2 = []
+        json_str['node_maps'] = node_maps2
+        json_str['industry_amount'] = industry_amount_daily_total
+        json_str['industry_volume'] = industry_volume_daily_total
         for node_index in range(len(node_maps)):
             node_map2 = {}
             node_map = node_maps[node_index]
@@ -2863,7 +2884,7 @@ def AnalyseDailyEMA():
                     node_dict = node.getDict()
                     node_map2[key].append(node_dict)
             node_maps2.append(node_map2)
-        json_values = json.dumps(node_maps2)
+        json_values = json.dumps(json_str)
         fw = open('product/industry_ema/node_maps' + cur_day + '.json', 'w')
         fw.write(json_values)
         fw.close()
@@ -3320,7 +3341,7 @@ def main():
     # findStockBySuByFirstRate()
     # analyseMACDRate()
     # getQFQTSData() 
-    # AnalyseDailyEMA()  #open office 打开
+    AnalyseDailyEMA()  #open office 打开
     # findOneDayReversal()
     # findEmaAndMavol()
     # crawlStockValueFromWeb()
