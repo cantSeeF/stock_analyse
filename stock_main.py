@@ -1801,8 +1801,7 @@ def getTop(is_save = True,rule_names = ['more05','less05','more03','less03','les
 
             # if not (stock_dic['industry'] == u'食品'):
             #     continue
-            if stock_dic['industry'] == u'银行' or \
-                stock_dic['industry'] == u'全国地产' or \
+            if stock_dic['industry'] == u'全国地产' or \
                 stock_dic['industry'] == u'房产服务' or \
                 stock_dic['industry'] == u'园区开发' or \
                 stock_dic['industry'] == u'火力发电' or \
@@ -1958,7 +1957,7 @@ def getTopAllScore(is_save = True,rule_names = ['more05','less05','more03','less
             # if stock_code[0] != '3':
             #     continue
 
-            if stock_dic['industry'] == u'银行' or stock_dic['industry'] == u'全国地产' or stock_dic['industry'] == u'房产服务' or stock_dic['industry'] == u'区域地产':
+            if stock_dic['industry'] == u'全国地产' or stock_dic['industry'] == u'房产服务' or stock_dic['industry'] == u'区域地产':
                 continue
             num = 0
             if rule_name[-2] == '0':
@@ -2657,6 +2656,30 @@ def togDownloadAndUpdateDailyData():
     # business_data = [{'ts_code':'002752.SZ'}]
     downloadAndUpdateDailyData(stock_codes)
 
+def addOtherIndustryNode(tops):
+    if not tops:
+        return
+
+    industry_stocks = [
+        {'industry_name':'光伏+','stock_codes':['601012','300316','600438','600732','603806','002129','300751','300118','300763','300274','601877','601727','600537','600089','300450']},
+        {'industry_name':'新能源+','stock_codes':['002594','300124','002812','300014','300750','002050','300450','002460','600066','600885','002074','002340','002466','300073','002126']},
+        {'industry_name':'军工+','stock_codes':['601989','600893','000768','000547','002179','600760','002414','002465','002013','600118','600316','600879','600482','002268','600685']},
+        {'industry_name':'有色金属+','stock_codes':['601899','600547','002460','603993','603799','600111','601600','600988','002340','002466','600497','600206','000807','600459','000933']},
+    ]
+
+    for industry_stock in industry_stocks:
+        industry_name = industry_stock['industry_name']
+        stock_codes = industry_stock['stock_codes']
+        th = TopKHeap(15)
+        for stock_code in stock_codes:
+            if stock_code[0] == '6':
+                stock_code = stock_code[0:6] + '.SH'
+            else:
+                stock_code = stock_code[0:6] + '.SZ'
+            th.push(Node(stock_code,'name',1000,'5year'))
+        tops[industry_name] = th
+    return tops
+
 def AnalyseDailyEMA():
     node_maps = []
     industry_amount_daily_total = {}
@@ -2695,6 +2718,7 @@ def AnalyseDailyEMA():
         # th.push(Node('002594.SZ','美的集团 家电',0, 'nyear'))
         # th.push(Node('300087.SZ','美的集团 家电',0, 'nyear'))
         # tops = {'abc':th}
+        addOtherIndustryNode(tops)
         # node_map = {}
         industry_count = 0
         limit_count = 1000
@@ -2732,7 +2756,7 @@ def AnalyseDailyEMA():
                 if len(df) < 80:
                     continue
 
-                industry_name = g_stock_codes[stock_code[0:6]]['industry']
+                industry_name = key
                 if not industry_amount_daily_total.has_key(industry_name):
                     industry_amount_daily_total[industry_name] = 0
                 industry_amount_daily_total[industry_name] = industry_amount_daily_total[industry_name] + df.ix[0,'amount'] * 1000
@@ -2852,8 +2876,11 @@ def AnalyseDailyEMA():
         #     break
         sheet1.write(row,low,industry['industry_name'])#第1行第1列数据
         low = low + 1
-        sheet1.write(row,low,'all' + str(industry_counts[industry['industry_name']]))
-        fo.write(industry['industry_name'] + str(industry_counts[industry['industry_name']]) +':' + ' ')
+        industry_count = 'N'
+        if industry_counts.has_key(industry['industry_name']):
+            industry_count = industry_counts[industry['industry_name']]
+        sheet1.write(row,low,'all' + str(industry_count))
+        fo.write(industry['industry_name'] + str(industry_count) +':' + ' ')
         for count in counts:
             low = low + 1
             sheet1.write(row,low,str(count)) 
