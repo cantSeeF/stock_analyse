@@ -2662,9 +2662,9 @@ def addOtherIndustryNode(tops):
 
     industry_stocks = [
         {'industry_name':'光伏+','stock_codes':['601012','300316','600438','600732','603806','002129','300751','300118','300763','300274','601877','601727','600537','600089','300450']},
-        {'industry_name':'新能源+','stock_codes':['002594','300124','002812','300014','300750','002050','300450','002460','600066','600885','002074','002340','002466','300073','002126']},
-        {'industry_name':'军工+','stock_codes':['601989','600893','000768','000547','002179','600760','002414','002465','002013','600118','600316','600879','600482','002268','600685']},
-        {'industry_name':'有色金属+','stock_codes':['601899','600547','002460','603993','603799','600111','601600','600988','002340','002466','600497','600206','000807','600459','000933']},
+        # {'industry_name':'新能源+','stock_codes':['002594','300124','002812','300014','300750','002050','300450','002460','600066','600885','002074','002340','002466','300073','002126']},
+        # {'industry_name':'军工+','stock_codes':['601989','600893','000768','000547','002179','600760','002414','002465','002013','600118','600316','600879','600482','002268','600685']},
+        # {'industry_name':'有色金属+','stock_codes':['601899','600547','002460','603993','603799','600111','601600','600988','002340','002466','600497','600206','000807','600459','000933']},
     ]
 
     for industry_stock in industry_stocks:
@@ -2682,8 +2682,8 @@ def addOtherIndustryNode(tops):
 
 def AnalyseDailyEMA():
     node_maps = []
-    industry_amount_daily_total = {}
-    industry_volume_daily_total = {}
+    industry_amount_daily_total = [{},{},{},{},{},{},{},{},{},{},{},{}]
+    industry_volume_daily_total = [{},{},{},{},{},{},{},{},{},{},{},{}]
     is_node_maps_init = False
     cur_day = datetime.datetime.now().strftime('%Y%m%d')
     if os.path.exists('product/industry_ema/node_maps' + cur_day + '.json'):
@@ -2757,13 +2757,6 @@ def AnalyseDailyEMA():
                     continue
 
                 industry_name = key
-                if not industry_amount_daily_total.has_key(industry_name):
-                    industry_amount_daily_total[industry_name] = 0
-                industry_amount_daily_total[industry_name] = industry_amount_daily_total[industry_name] + df.ix[0,'amount'] * 1000
-
-                if not industry_volume_daily_total.has_key(industry_name):
-                    industry_volume_daily_total[industry_name] = 0
-                industry_volume_daily_total[industry_name] = industry_volume_daily_total[industry_name] + df.ix[0,'vol']
 
                 df = df.iloc[::-1]
                 df.index = range(0,len(df)) 
@@ -2786,6 +2779,15 @@ def AnalyseDailyEMA():
                     node_map = node_maps[node_index]
                     start_index = node_index * 5
                     up_count = 0
+
+                    total_index = len(industry_amount_daily_total) - 1 - node_index
+                    if not industry_amount_daily_total[total_index].has_key(industry_name):
+                        industry_amount_daily_total[total_index][industry_name] = 0
+                    industry_amount_daily_total[total_index][industry_name] = industry_amount_daily_total[total_index][industry_name] + df.ix[start_index,'amount'] * 1000
+
+                    if not industry_volume_daily_total[total_index].has_key(industry_name):
+                        industry_volume_daily_total[total_index][industry_name] = 0
+                    industry_volume_daily_total[total_index][industry_name] = industry_volume_daily_total[total_index][industry_name] + df.ix[start_index,'vol']
                     for index in range(61):
                         diff = pd_diff[index + start_index]
                         if diff > 0:
@@ -2885,9 +2887,17 @@ def AnalyseDailyEMA():
             low = low + 1
             sheet1.write(row,low,str(count)) 
             fo.write(str(count) + ' ')
-        amount_total_str = utils.big_number_to_str(industry_amount_daily_total[industry['industry_name']])
-        vol_total_str = str(int(industry_volume_daily_total[industry['industry_name']] / 10000)) + '万'
-        fo.write('               vol ' + vol_total_str + ' amount ' + amount_total_str)
+
+        fo.write('     vol ')
+        for industry_volume_daily in industry_volume_daily_total:
+            vol_total_str = str(int(industry_volume_daily[industry['industry_name']] / 10000)) + '万'
+            fo.write(vol_total_str + ' ')
+
+        fo.write('     amount ')
+        for industry_amount_daily in industry_amount_daily_total:
+            amount_total_str = utils.big_number_to_str(industry_amount_daily[industry['industry_name']])
+            fo.write(amount_total_str + ' ')
+            
         fo.write('\n')
         low = 0
         row = row + 1
