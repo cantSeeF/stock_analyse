@@ -2662,9 +2662,9 @@ def addOtherIndustryNode(tops):
 
     industry_stocks = [
         {'industry_name':'光伏+','stock_codes':['601012','300316','600438','600732','603806','002129','300751','300118','300763','300274','601877','601727','600537','600089','300450']},
-        # {'industry_name':'新能源+','stock_codes':['002594','300124','002812','300014','300750','002050','300450','002460','600066','600885','002074','002340','002466','300073','002126']},
-        # {'industry_name':'军工+','stock_codes':['601989','600893','000768','000547','002179','600760','002414','002465','002013','600118','600316','600879','600482','002268','600685']},
-        # {'industry_name':'有色金属+','stock_codes':['601899','600547','002460','603993','603799','600111','601600','600988','002340','002466','600497','600206','000807','600459','000933']},
+        {'industry_name':'新能源+','stock_codes':['002594','300124','002812','300014','300750','002050','300450','002460','600066','600885','002074','002340','002466','300073','002126']},
+        {'industry_name':'军工+','stock_codes':['601989','600893','000768','000547','002179','600760','002414','002465','002013','600118','600316','600879','600482','002268','600685']},
+        {'industry_name':'有色金属+','stock_codes':['601899','600547','002460','603993','603799','600111','601600','600988','002340','002466','600497','600206','000807','600459','000933']},
     ]
 
     for industry_stock in industry_stocks:
@@ -2888,14 +2888,14 @@ def AnalyseDailyEMA():
             sheet1.write(row,low,str(count)) 
             fo.write(str(count) + ' ')
 
-        fo.write('     vol ')
+        fo.write('     vol万 ')
         for industry_volume_daily in industry_volume_daily_total:
-            vol_total_str = str(int(industry_volume_daily[industry['industry_name']] / 10000)) + '万'
+            vol_total_str = str(int(industry_volume_daily[industry['industry_name']] / 10000))
             fo.write(vol_total_str + ' ')
 
-        fo.write('     amount ')
+        fo.write('     amount百万 ')
         for industry_amount_daily in industry_amount_daily_total:
-            amount_total_str = utils.big_number_to_str(industry_amount_daily[industry['industry_name']])
+            amount_total_str = str(int((industry_amount_daily[industry['industry_name']]) / 1000000))
             fo.write(amount_total_str + ' ')
             
         fo.write('\n')
